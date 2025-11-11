@@ -443,9 +443,19 @@ $user_decks = $stmt->fetchAll();
 
                 <div class="deck-actions">
                     <button id="saveDeckBtn" class="btn btn-primary btn-small">Save Deck</button>
+                    <button id="publishToggleBtn" class="btn btn-secondary btn-small" style="display: none;">
+                        <span id="publishBtnText">Publish Deck</span>
+                    </button>
                     <button id="clearDeckBtn" class="btn btn-secondary btn-small">Clear</button>
                     <button id="exportDeckBtn" class="btn btn-secondary btn-small">Export Code</button>
                 </div>
+
+                <?php if ($current_deck && $current_deck['is_published']): ?>
+                <div style="background: #d4edda; border: 1px solid #c3e6cb; padding: 0.75rem; border-radius: 5px; margin-bottom: 1rem; font-size: 0.9rem;">
+                    <strong>✓ This deck is published</strong><br>
+                    <small>Other players can view and copy this deck</small>
+                </div>
+                <?php endif; ?>
 
                 <div class="deck-list" id="deckList">
                     <div class="empty-deck">
@@ -493,6 +503,7 @@ $user_decks = $stmt->fetchAll();
         const currentDeckCards = <?php echo json_encode($deck_cards); ?>;
         const userCollection = <?php echo json_encode($user_collection); ?>;
         const allCardsData = <?php echo json_encode($all_cards); ?>;
+        const currentDeckPublished = <?php echo $current_deck && $current_deck['is_published'] ? 'true' : 'false'; ?>;
 
         // Create card database for quick lookups
         const cardDatabase = {};

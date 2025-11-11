@@ -1,6 +1,7 @@
 // Deck Builder JavaScript - Fully Functional
 let currentDeck = [];
 let deckChangeTimeout = null;
+let isPublished = false;
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
@@ -12,6 +13,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // Set published status
+    isPublished = currentDeckPublished;
+    updatePublishButton();
 
     // Wire up event listeners
     setupFilters();
@@ -298,6 +303,7 @@ function setupDeckActions() {
     document.getElementById('saveDeckBtn').addEventListener('click', saveDeck);
     document.getElementById('clearDeckBtn').addEventListener('click', clearDeck);
     document.getElementById('exportDeckBtn').addEventListener('click', exportDeck);
+    document.getElementById('publishToggleBtn').addEventListener('click', togglePublish);
 }
 
 async function saveDeck() {
@@ -347,6 +353,9 @@ async function saveDeck() {
                 // Update URL without reloading
                 const newUrl = `deck_builder_new.php?deck_id=${data.deck_id}`;
                 window.history.replaceState({}, '', newUrl);
+
+                // Show publish button now that deck is saved
+                updatePublishButton();
             }
         } else {
             showNotification(data.message, 'error');
@@ -354,6 +363,67 @@ async function saveDeck() {
     } catch (error) {
         console.error('Save error:', error);
         showNotification('Failed to save deck', 'error');
+    }
+}
+
+function updatePublishButton() {
+    const deckId = document.getElementById('deckId').value;
+    const publishBtn = document.getElementById('publishToggleBtn');
+    const publishBtnText = document.getElementById('publishBtnText');
+
+    if (deckId) {
+        publishBtn.style.display = 'inline-block';
+        publishBtnText.textContent = isPublished ? 'Unpublish Deck' : 'Publish Deck';
+        publishBtn.className = isPublished ? 'btn btn-secondary btn-small' : 'btn btn-primary btn-small';
+    } else {
+        publishBtn.style.display = 'none';
+    }
+}
+
+async function togglePublish() {
+    const deckId = document.getElementById('deckId').value;
+
+    if (!deckId) {
+        showNotification('Please save the deck first', 'error');
+        return;
+    }
+
+    const action = isPublished ? 'unpublish' : 'publish';
+    const confirmMsg = isPublished
+        ? 'Unpublish this deck? Other players will no longer be able to view it.'
+        : 'Publish this deck? Other players will be able to view and copy it.';
+
+    if (!confirm(confirmMsg)) {
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('action', action);
+    formData.append('deck_id', deckId);
+
+    try {
+        const response = await fetch('api/deck.php', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            isPublished = !isPublished;
+            updatePublishButton();
+            showNotification(data.message, 'success');
+
+            // Reload page to show published status
+            setTimeout(() => {
+                location.reload();
+            }, 1500);
+        } else {
+            showNotification(data.message, 'error');
+        }
+    } catch (error) {
+        console.error('Publish error:', error);
+        showNotification('Failed to update deck status', 'error');
     }
 }
 
