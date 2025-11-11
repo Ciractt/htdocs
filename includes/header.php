@@ -10,11 +10,11 @@ if (!isset($user)) {
         <nav>
             <ul>
                 <li><a href="index.php">Home</a></li>
-                <li><a href="cards.php">Cards</a></li>
-<li><a href="cards2.php">Cards Advanced</a></li>
+                <li><a href="cards2.php">Cards</a></li>
+                <li><a href="community_decks.php">Community Decks</a></li>
                 <?php if ($user): ?>
                     <li><a href="collection.php">Collection</a></li>
-                    <li><a href="deck_builder.php">Deck Builder (semi working - semi broken)</a></li>
+                    <li><a href="deck_builder.php">Deck Builder</a></li>
                 <?php endif; ?>
             </ul>
         </nav>
