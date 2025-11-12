@@ -56,7 +56,6 @@ $user_decks = $stmt->fetchAll();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Deck Builder - <?php echo SITE_NAME; ?></title>
     <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/style-fixes.css">
     <style>
         .deck-builder-container {
             display: grid;
@@ -294,6 +293,50 @@ $user_decks = $stmt->fetchAll();
             padding-left: 1.5rem;
         }
 
+        .import-textarea {
+            width: 100%;
+            min-height: 150px;
+            padding: 1rem;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            resize: vertical;
+        }
+
+        .import-help {
+            background: #e3f2fd;
+            padding: 1rem;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+
+        .import-help strong {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #1976d2;
+        }
+
+        .import-result {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 5px;
+            font-size: 0.9rem;
+        }
+
+        .import-result.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .import-result.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
         @media (max-width: 1024px) {
             .deck-builder-container {
                 grid-template-columns: 1fr;
@@ -313,6 +356,7 @@ $user_decks = $stmt->fetchAll();
         <div class="page-header">
             <h1>Deck Builder</h1>
             <div>
+                <button id="importDeckBtn" class="btn btn-secondary btn-small">Import Deck</button>
                 <button id="loadDeckBtn" class="btn btn-secondary btn-small">Load Deck</button>
                 <a href="deck_builder.php" class="btn btn-secondary btn-small">New Deck</a>
             </div>
@@ -481,6 +525,35 @@ $user_decks = $stmt->fetchAll();
             </div>
         </div>
 
+        <!-- Import Deck Modal -->
+        <div id="importDeckModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>Import Deck</h2>
+
+                <div class="import-help">
+                    <strong>Supported Formats:</strong>
+                    <ul style="margin: 0.5rem 0 0 1.5rem;">
+                        <li><strong>TTS Format:</strong> OGN-259-1 OGN-076-2 OGN-045-1...</li>
+                        <li><strong>Standard Format:</strong> 1x OGN-259 or 1 OGN-259</li>
+                        <li><strong>Line Format:</strong> One card per line (1x OGN-259)</li>
+                    </ul>
+                    <small style="margin-top: 0.5rem; display: block;">Paste your deck code below:</small>
+                </div>
+
+                <textarea id="importTextarea"
+                          class="import-textarea"
+                          placeholder="Paste deck code here...&#10;&#10;Example:&#10;OGN-259-1 OGN-076-2 OGN-045-1...&#10;&#10;or&#10;&#10;1x OGN-259&#10;2x OGN-076&#10;1x OGN-045"></textarea>
+
+                <div id="importResult" class="import-result" style="display: none;"></div>
+
+                <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+                    <button id="importProcessBtn" class="btn btn-primary">Import Deck</button>
+                    <button id="importCancelBtn" class="btn btn-secondary">Cancel</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Load Deck Modal -->
         <div id="loadDeckModal" class="modal">
             <div class="modal-content">
@@ -545,8 +618,15 @@ $user_decks = $stmt->fetchAll();
         allCardsData.forEach(card => {
             cardDatabase[card.id] = card;
         });
+
+        // Create lookup by card_code for imports
+        const cardCodeDatabase = {};
+        allCardsData.forEach(card => {
+            cardCodeDatabase[card.card_code] = card;
+        });
     </script>
     <script src="js/main.js"></script>
     <script src="js/deck_builder.js"></script>
+    <script src="js/deck_import.js"></script>
 </body>
 </html>
