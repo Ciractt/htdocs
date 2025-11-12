@@ -12,44 +12,44 @@ if (isLoggedIn()) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Register - <?php echo SITE_NAME; ?></title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style-dark.css">
 </head>
 <body>
     <?php include 'includes/header.php'; ?>
-    
+
     <main class="container">
         <div class="auth-container">
             <h1>Register</h1>
-            
+
             <div id="message" class="message hidden"></div>
-            
+
             <form id="registerForm" class="auth-form">
                 <input type="hidden" name="action" value="register">
-                
+
                 <div class="form-group">
                     <label for="username">Username</label>
                     <input type="text" id="username" name="username" required>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="email">Email</label>
                     <input type="email" id="email" name="email" required>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="password">Password</label>
                     <input type="password" id="password" name="password" required>
                     <small>At least 6 characters</small>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="confirm_password">Confirm Password</label>
                     <input type="password" id="confirm_password" name="confirm_password" required>
                 </div>
-                
+
                 <button type="submit" class="btn btn-primary btn-full">Register</button>
             </form>
-            
+
             <p class="auth-link">
                 Already have an account? <a href="login.php">Login here</a>
             </p>

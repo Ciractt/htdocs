@@ -89,7 +89,7 @@ foreach ($deck_cards as $card) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($deck['deck_name']); ?> - <?php echo SITE_NAME; ?></title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style-dark.css">
     <style>
         .deck-view-header {
             background: white;
