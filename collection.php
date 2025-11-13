@@ -24,7 +24,6 @@ while ($row = $stmt->fetch()) {
 // Load all cards
 $all_cards = $pdo->query("
     SELECT * FROM cards
-    WHERE card_type NOT IN ('Rune', 'Battlefield')
     ORDER BY card_code
 ")->fetchAll();
 
@@ -557,8 +556,8 @@ $sets = $pdo->query("SELECT DISTINCT set_name FROM cards WHERE set_name IS NOT N
 
                 <!-- Sort -->
                 <select id="sortSelect" class="filter-select">
-                    <option value="id-asc">Sort: ID (A-Z)</option>
-                    <option value="id-desc">Sort: ID (Z-A)</option>
+                    <option value="code-asc">Sort: Card Code (A-Z)</option>
+                    <option value="code-desc">Sort: Card Code (Z-A)</option>
                     <option value="name-asc">Sort: Name (A-Z)</option>
                     <option value="name-desc">Sort: Name (Z-A)</option>
                     <option value="energy-asc">Sort: Energy (Low-High)</option>
@@ -577,6 +576,7 @@ $sets = $pdo->query("SELECT DISTINCT set_name FROM cards WHERE set_name IS NOT N
                 ?>
                 <div class="collection-card <?php echo !$is_owned ? 'unowned' : ''; ?>"
                      data-card-id="<?php echo $card['id']; ?>"
+                     data-card-code="<?php echo strtolower($card['card_code'] ?? ''); ?>"
                      data-owned="<?php echo $is_owned ? '1' : '0'; ?>"
                      data-wishlisted="<?php echo $is_wishlisted ? '1' : '0'; ?>"
                      data-set="<?php echo strtolower($card['set_name'] ?? ''); ?>"

@@ -13,7 +13,7 @@
         type: '',
         wishlist: false
     };
-    let currentSort = 'id-asc';
+    let currentSort = 'code-asc';
 
     // Initialize
     document.addEventListener('DOMContentLoaded', init);
@@ -251,9 +251,9 @@
             let aVal, bVal;
 
             switch (field) {
-                case 'id':
-                    aVal = a.dataset.cardId;
-                    bVal = b.dataset.cardId;
+                case 'code':
+                    aVal = a.dataset.cardCode || '';
+                    bVal = b.dataset.cardCode || '';
                     break;
                 case 'name':
                     aVal = a.dataset.name;
@@ -264,7 +264,15 @@
                     bVal = parseInt(b.dataset.energy) || 0;
                     break;
                 case 'rarity':
-                    const rarityOrder = { 'common': 1, 'uncommon': 2, 'rare': 3, 'epic': 4, 'champion': 5, 'legend': 6 };
+                    const rarityOrder = {
+                        'common': 1,
+                        'uncommon': 2,
+                        'rare': 3,
+                        'epic': 4,
+                        'champion': 5,
+                        'legend': 6,
+                        'showcase': 7
+                    };
                     aVal = rarityOrder[a.dataset.rarity] || 0;
                     bVal = rarityOrder[b.dataset.rarity] || 0;
                     break;
