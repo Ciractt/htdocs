@@ -91,6 +91,7 @@ foreach ($deck_cards as $card) {
     <title><?php echo htmlspecialchars($deck['deck_name']); ?> - <?php echo SITE_NAME; ?></title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/style-fixes.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         .deck-view-header {
             background: white;
@@ -172,6 +173,94 @@ foreach ($deck_cards as $card) {
             top: 20px;
             max-height: calc(100vh - 40px);
             overflow-y: auto;
+        }
+
+        .sidebar-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .sidebar-tab {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .sidebar-tab:hover {
+            color: #667eea;
+        }
+
+        .sidebar-tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .sidebar-tab-content {
+            display: none;
+        }
+
+        .sidebar-tab-content.active {
+            display: block;
+        }
+
+        .sidebar-section {
+            margin-bottom: 2rem;
+        }
+
+        .sidebar-section h4 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            color: #333;
+        }
+
+        .chart-container-small {
+            position: relative;
+            height: 200px;
+        }
+
+        .chart-container-small canvas {
+            max-height: 200px;
+        }
+
+        #sampleHandDisplay {
+            min-height: 150px;
+        }
+
+        .sample-hand-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+        }
+
+        .sample-hand-card {
+            text-align: center;
+        }
+
+        .sample-hand-card img {
+            width: 100%;
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .sample-hand-card-name {
+            font-size: 0.75rem;
+            margin-top: 0.25rem;
+            font-weight: 500;
+        }
+
+        .sample-hand-card-cost {
+            font-size: 0.7rem;
+            color: #666;
         }
 
         .card-type-section {
@@ -407,21 +496,53 @@ foreach ($deck_cards as $card) {
                 <?php endif; ?>
             </div>
 
-            <!-- Sidebar -->
+            <!-- Sidebar with Statistics -->
             <div class="deck-sidebar">
-                <h3>Card Type Distribution</h3>
-                <div class="type-distribution">
-                    <?php foreach ($card_types as $type => $count): ?>
-                        <?php $percentage = ($count / $deck['total_cards']) * 100; ?>
-                        <div class="type-bar">
-                            <span class="type-label"><?php echo $type; ?></span>
-                            <div class="type-progress">
-                                <div class="type-progress-fill" style="width: <?php echo $percentage; ?>%">
-                                    <?php echo $count; ?>
-                                </div>
-                            </div>
+                <!-- Tabs -->
+                <div class="sidebar-tabs">
+                    <button class="sidebar-tab active" data-tab="stats">Stats</button>
+                    <button class="sidebar-tab" data-tab="sample-hand">Sample Hand</button>
+                </div>
+
+                <!-- Stats Tab -->
+                <div id="stats-tab" class="sidebar-tab-content active">
+                    <!-- Energy Curve -->
+                    <div class="sidebar-section">
+                        <h4>Energy Curve</h4>
+                        <div class="chart-container-small">
+                            <canvas id="energyCurveChart"></canvas>
                         </div>
-                    <?php endforeach; ?>
+                    </div>
+
+                    <!-- Power Distribution -->
+                    <div class="sidebar-section">
+                        <h4>Power Distribution</h4>
+                        <div class="chart-container-small">
+                            <canvas id="powerDistChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Card Type Distribution -->
+                    <div class="sidebar-section">
+                        <h4>Card Types</h4>
+                        <div class="chart-container-small">
+                            <canvas id="cardTypeChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sample Hand Tab -->
+                <div id="sample-hand-tab" class="sidebar-tab-content">
+                    <div class="sidebar-section">
+                        <button id="drawHandBtn" class="btn btn-primary btn-small" style="width: 100%; margin-bottom: 1rem;">
+                            Draw Hand
+                        </button>
+                        <div id="sampleHandDisplay">
+                            <p style="text-align: center; color: #999; padding: 2rem 0;">
+                                Click "Draw Hand" to see a sample starting hand
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -436,6 +557,240 @@ foreach ($deck_cards as $card) {
     <script src="js/card_formatter.js"></script>
     <script src="js/cards.js"></script>
     <script>
+        // Deck data from PHP
+        const deckCards = <?php echo json_encode($deck_cards); ?>;
+
+        // Tab switching
+        document.querySelectorAll('.sidebar-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                const tabName = this.dataset.tab;
+
+                // Update tab buttons
+                document.querySelectorAll('.sidebar-tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+
+                // Update tab content
+                document.querySelectorAll('.sidebar-tab-content').forEach(c => c.classList.remove('active'));
+                document.getElementById(tabName + '-tab').classList.add('active');
+            });
+        });
+
+        // Initialize charts when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCharts();
+            setupSampleHand();
+        });
+
+        function initializeCharts() {
+            createEnergyCurveChart();
+            createPowerDistributionChart();
+            createCardTypeChart();
+        }
+
+        function createEnergyCurveChart() {
+            const ctx = document.getElementById('energyCurveChart');
+            if (!ctx) return;
+
+            // Count cards by energy
+            const energyCounts = {};
+            deckCards.forEach(card => {
+                const energy = card.energy ?? 0;
+                const qty = card.quantity || 1;
+                energyCounts[energy] = (energyCounts[energy] || 0) + qty;
+            });
+
+            const maxEnergy = Math.max(...Object.keys(energyCounts).map(Number), 10);
+            const labels = [];
+            const data = [];
+
+            for (let i = 0; i <= maxEnergy; i++) {
+                labels.push(i.toString());
+                data.push(energyCounts[i] || 0);
+            }
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Cards',
+                        data: data,
+                        backgroundColor: 'rgba(102, 126, 234, 0.8)',
+                        borderColor: 'rgba(102, 126, 234, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { stepSize: 1 }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Energy Cost'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createPowerDistributionChart() {
+            const ctx = document.getElementById('powerDistChart');
+            if (!ctx) return;
+
+            // Count cards by power
+            const powerCounts = {};
+            deckCards.forEach(card => {
+                const power = card.power || 'None';
+                const qty = card.quantity || 1;
+                powerCounts[power] = (powerCounts[power] || 0) + qty;
+            });
+
+            const labels = Object.keys(powerCounts);
+            const data = Object.values(powerCounts);
+
+            const powerColors = {
+                'Fury': 'rgba(231, 76, 60, 0.8)',
+                'Calm': 'rgba(52, 152, 219, 0.8)',
+                'Chaos': 'rgba(155, 89, 182, 0.8)',
+                'Calm Chaos': 'rgba(102, 126, 234, 0.8)',
+                'Fury Fury': 'rgba(192, 57, 43, 0.8)',
+                'Fury Calm': 'rgba(142, 68, 173, 0.8)',
+                'None': 'rgba(149, 165, 166, 0.8)'
+            };
+
+            const colors = labels.map(label => powerColors[label] || 'rgba(149, 165, 166, 0.8)');
+
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors,
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                font: { size: 11 },
+                                padding: 8
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createCardTypeChart() {
+            const ctx = document.getElementById('cardTypeChart');
+            if (!ctx) return;
+
+            // Count cards by type
+            const typeCounts = {};
+            deckCards.forEach(card => {
+                const type = card.card_type || 'Unknown';
+                const qty = card.quantity || 1;
+                typeCounts[type] = (typeCounts[type] || 0) + qty;
+            });
+
+            const labels = Object.keys(typeCounts);
+            const data = Object.values(typeCounts);
+
+            new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: [
+                            'rgba(52, 152, 219, 0.8)',
+                            'rgba(231, 76, 60, 0.8)',
+                            'rgba(46, 204, 113, 0.8)',
+                            'rgba(241, 196, 15, 0.8)',
+                            'rgba(155, 89, 182, 0.8)',
+                            'rgba(230, 126, 34, 0.8)'
+                        ],
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                font: { size: 11 },
+                                padding: 8
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function setupSampleHand() {
+            const drawBtn = document.getElementById('drawHandBtn');
+            if (drawBtn) {
+                drawBtn.addEventListener('click', drawSampleHand);
+            }
+        }
+
+        function drawSampleHand() {
+            const handSize = 7;
+            const display = document.getElementById('sampleHandDisplay');
+
+            // Create deck array with duplicates
+            const deck = [];
+            deckCards.forEach(card => {
+                const qty = card.quantity || 1;
+                for (let i = 0; i < qty; i++) {
+                    deck.push(card);
+                }
+            });
+
+            // Shuffle
+            for (let i = deck.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [deck[i], deck[j]] = [deck[j], deck[i]];
+            }
+
+            // Draw hand
+            const hand = deck.slice(0, Math.min(handSize, deck.length));
+
+            // Display
+            let html = '<div class="sample-hand-grid">';
+            hand.forEach(card => {
+                html += `
+                    <div class="sample-hand-card">
+                        ${card.card_art_url ? `<img src="${card.card_art_url}" alt="${card.name}">` : ''}
+                        <div class="sample-hand-card-name">${card.name}</div>
+                        ${card.energy !== null && card.energy !== undefined ?
+                            `<div class="sample-hand-card-cost">${card.energy} Energy</div>` : ''}
+                    </div>
+                `;
+            });
+            html += '</div>';
+
+            display.innerHTML = html;
+        }
+
         async function copyDeck(deckId) {
             if (!confirm('Copy this deck to your collection?')) {
                 return;

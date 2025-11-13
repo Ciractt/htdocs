@@ -1,4 +1,5 @@
 <?php
+// API for Rule-Enforced Deck Builder (v2)
 require_once '../config.php';
 requireLogin();
 
@@ -6,241 +7,244 @@ header('Content-Type: application/json');
 
 $pdo = getDB();
 $user = getCurrentUser();
-$response = ['success' => false, 'message' => ''];
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $action = $_POST['action'] ?? '';
+// Get JSON input
+$input = json_decode(file_get_contents('php://input'), true);
+$action = $input['action'] ?? '';
 
-    if ($action === 'save') {
-        $deck_id = intval($_POST['deck_id'] ?? 0);
-        $deck_name = trim($_POST['deck_name'] ?? '');
-        $description = trim($_POST['description'] ?? '');
-        $cards = json_decode($_POST['cards'] ?? '[]', true);
+try {
+    switch ($action) {
+        case 'save_deck_v2':
+            saveDeckV2($pdo, $user, $input);
+            break;
 
-        if (empty($deck_name)) {
-            $response['message'] = 'Deck name is required';
-        } elseif (!is_array($cards)) {
-            $response['message'] = 'Invalid card data';
-        } else {
-            $pdo->beginTransaction();
+        default:
+            throw new Exception('Invalid action');
+    }
+} catch (Exception $e) {
+    echo json_encode([
+        'success' => false,
+        'message' => $e->getMessage()
+    ]);
+}
 
-            try {
-                if ($deck_id > 0) {
-                    // Update existing deck
-                    $stmt = $pdo->prepare("UPDATE decks SET deck_name = ?, description = ?, updated_at = NOW() WHERE id = ? AND user_id = ?");
-                    $stmt->execute([$deck_name, $description, $deck_id, $user['id']]);
+/**
+ * Save deck with rule enforcement
+ */
+function saveDeckV2($pdo, $user, $input) {
+    // Validate required fields
+    if (empty($input['deck_name'])) {
+        throw new Exception('Deck name is required');
+    }
 
-                    // Delete old cards
-                    $stmt = $pdo->prepare("DELETE FROM deck_cards WHERE deck_id = ?");
-                    $stmt->execute([$deck_id]);
-                } else {
-                    // Create new deck
-                    $stmt = $pdo->prepare("INSERT INTO decks (user_id, deck_name, description) VALUES (?, ?, ?)");
-                    $stmt->execute([$user['id'], $deck_name, $description]);
-                    $deck_id = $pdo->lastInsertId();
-                }
+    if (empty($input['champion_legend_id'])) {
+        throw new Exception('Champion Legend is required');
+    }
 
-                // Add cards to deck
-                $stmt = $pdo->prepare("INSERT INTO deck_cards (deck_id, card_id, quantity) VALUES (?, ?, ?)");
-                foreach ($cards as $card) {
-                    if (isset($card['id']) && isset($card['quantity'])) {
-                        $stmt->execute([$deck_id, $card['id'], $card['quantity']]);
-                    }
-                }
+    // Validate deck rules
+    $mainDeck = $input['main_deck'] ?? [];
+    $runeDeck = $input['rune_deck'] ?? [];
+    $battlefields = $input['battlefields'] ?? [];
 
-                $pdo->commit();
+    // Rule: Main deck minimum 40 cards
+    if (count($mainDeck) < 40) {
+        throw new Exception('Main deck must have at least 40 cards');
+    }
 
-                $response['success'] = true;
-                $response['message'] = 'Deck saved successfully';
-                $response['deck_id'] = $deck_id;
-            } catch (Exception $e) {
-                $pdo->rollBack();
-                $response['message'] = 'Failed to save deck';
-            }
+    // Rule: Rune deck exactly 12 cards
+    if (count($runeDeck) !== 12) {
+        throw new Exception('Rune deck must be exactly 12 cards');
+    }
+
+    // Rule: Must have Chosen Champion
+    if (empty($input['chosen_champion_id'])) {
+        throw new Exception('Chosen Champion is required');
+    }
+
+    // Validate Champion Legend exists and is a Legend
+    $stmt = $pdo->prepare("SELECT * FROM cards WHERE id = ? AND card_type = 'Legend'");
+    $stmt->execute([$input['champion_legend_id']]);
+    $championLegend = $stmt->fetch();
+
+    if (!$championLegend) {
+        throw new Exception('Invalid Champion Legend');
+    }
+
+    // Validate Chosen Champion
+    $stmt = $pdo->prepare("SELECT * FROM cards WHERE id = ? AND (card_type = 'Champion' OR rarity = 'Champion')");
+    $stmt->execute([$input['chosen_champion_id']]);
+    $chosenChampion = $stmt->fetch();
+
+    if (!$chosenChampion) {
+        throw new Exception('Invalid Chosen Champion');
+    }
+
+    // Rule: Chosen Champion must match Legend's tag
+    if ($chosenChampion['champion'] !== $championLegend['champion']) {
+        throw new Exception('Chosen Champion must match Champion Legend\'s tag');
+    }
+
+    // Validate card quantities (max 3 per card name)
+    $cardCounts = array_count_values($mainDeck);
+    foreach ($cardCounts as $cardId => $count) {
+        if ($count > 3) {
+            $stmt = $pdo->prepare("SELECT name FROM cards WHERE id = ?");
+            $stmt->execute([$cardId]);
+            $card = $stmt->fetch();
+            throw new Exception("Maximum 3 copies allowed per card ({$card['name']})");
         }
-    } elseif ($action === 'delete') {
-        $deck_id = intval($_POST['deck_id'] ?? 0);
+    }
 
-        if ($deck_id <= 0) {
-            $response['message'] = 'Invalid deck ID';
-        } else {
-            $stmt = $pdo->prepare("DELETE FROM decks WHERE id = ? AND user_id = ?");
-            $stmt->execute([$deck_id, $user['id']]);
+    // Validate signature cards (max 3 total)
+    $signatureCount = 0;
+    foreach ($mainDeck as $cardId) {
+        $stmt = $pdo->prepare("SELECT card_type, champion FROM cards WHERE id = ?");
+        $stmt->execute([$cardId]);
+        $card = $stmt->fetch();
 
-            if ($stmt->rowCount() > 0) {
-                $response['success'] = true;
-                $response['message'] = 'Deck deleted successfully';
-            } else {
-                $response['message'] = 'Deck not found';
-            }
-        }
-    } elseif ($action === 'export') {
-        $deck_id = intval($_POST['deck_id'] ?? 0);
+        if ($card['card_type'] === 'Signature') {
+            $signatureCount++;
 
-        if ($deck_id <= 0) {
-            $response['message'] = 'Invalid deck ID';
-        } else {
-            $stmt = $pdo->prepare("
-                SELECT c.card_code, dc.quantity
-                FROM deck_cards dc
-                JOIN cards c ON dc.card_id = c.id
-                WHERE dc.deck_id = ?
-            ");
-            $stmt->execute([$deck_id]);
-            $cards = $stmt->fetchAll();
-
-            // Generate simple deck code
-            $deck_code = '';
-            foreach ($cards as $card) {
-                $deck_code .= $card['quantity'] . 'x ' . $card['card_code'] . "\n";
-            }
-
-            $response['success'] = true;
-            $response['deck_code'] = trim($deck_code);
-        }
-    } elseif ($action === 'publish') {
-        $deck_id = intval($_POST['deck_id'] ?? 0);
-        $featured_card_id = intval($_POST['featured_card_id'] ?? 0);
-
-        if ($deck_id <= 0) {
-            $response['message'] = 'Invalid deck ID';
-        } elseif ($featured_card_id <= 0) {
-            $response['message'] = 'Please select a featured card';
-        } else {
-            // Verify deck belongs to user
-            $stmt = $pdo->prepare("SELECT id FROM decks WHERE id = ? AND user_id = ?");
-            $stmt->execute([$deck_id, $user['id']]);
-
-            if (!$stmt->fetch()) {
-                $response['message'] = 'Deck not found';
-            } else {
-                // Verify featured card is in the deck
-                $stmt = $pdo->prepare("SELECT id FROM deck_cards WHERE deck_id = ? AND card_id = ?");
-                $stmt->execute([$deck_id, $featured_card_id]);
-
-                if (!$stmt->fetch()) {
-                    $response['message'] = 'Selected card is not in this deck';
-                } else {
-                    $stmt = $pdo->prepare("UPDATE decks SET is_published = TRUE, published_at = NOW(), featured_card_id = ? WHERE id = ?");
-                    $stmt->execute([$featured_card_id, $deck_id]);
-
-                    $response['success'] = true;
-                    $response['message'] = 'Deck published successfully!';
-                }
-            }
-        }
-    } elseif ($action === 'unpublish') {
-        $deck_id = intval($_POST['deck_id'] ?? 0);
-
-        if ($deck_id <= 0) {
-            $response['message'] = 'Invalid deck ID';
-        } else {
-            // Verify deck belongs to user
-            $stmt = $pdo->prepare("SELECT id FROM decks WHERE id = ? AND user_id = ?");
-            $stmt->execute([$deck_id, $user['id']]);
-
-            if (!$stmt->fetch()) {
-                $response['message'] = 'Deck not found';
-            } else {
-                $stmt = $pdo->prepare("UPDATE decks SET is_published = FALSE WHERE id = ?");
-                $stmt->execute([$deck_id]);
-
-                $response['success'] = true;
-                $response['message'] = 'Deck unpublished';
-            }
-        }
-    } elseif ($action === 'copy_deck') {
-        $original_deck_id = intval($_POST['deck_id'] ?? 0);
-
-        if ($original_deck_id <= 0) {
-            $response['message'] = 'Invalid deck ID';
-        } else {
-            // Get original deck
-            $stmt = $pdo->prepare("SELECT * FROM decks WHERE id = ? AND is_published = TRUE");
-            $stmt->execute([$original_deck_id]);
-            $original_deck = $stmt->fetch();
-
-            if (!$original_deck) {
-                $response['message'] = 'Deck not found or not published';
-            } else {
-                // Get deck cards
-                $stmt = $pdo->prepare("SELECT card_id, quantity FROM deck_cards WHERE deck_id = ?");
-                $stmt->execute([$original_deck_id]);
-                $deck_cards = $stmt->fetchAll();
-
-                $pdo->beginTransaction();
-
-                try {
-                    // Create new deck for user
-                    $new_name = $original_deck['deck_name'] . ' (Copy)';
-                    $stmt = $pdo->prepare("INSERT INTO decks (user_id, deck_name, description) VALUES (?, ?, ?)");
-                    $stmt->execute([$user['id'], $new_name, $original_deck['description']]);
-                    $new_deck_id = $pdo->lastInsertId();
-
-                    // Copy cards
-                    $stmt = $pdo->prepare("INSERT INTO deck_cards (deck_id, card_id, quantity) VALUES (?, ?, ?)");
-                    foreach ($deck_cards as $card) {
-                        $stmt->execute([$new_deck_id, $card['card_id'], $card['quantity']]);
-                    }
-
-                    // Track copy
-                    $stmt = $pdo->prepare("INSERT INTO deck_copies (user_id, original_deck_id, copied_deck_id) VALUES (?, ?, ?)");
-                    $stmt->execute([$user['id'], $original_deck_id, $new_deck_id]);
-
-                    // Increment copy count
-                    $stmt = $pdo->prepare("UPDATE decks SET copy_count = copy_count + 1 WHERE id = ?");
-                    $stmt->execute([$original_deck_id]);
-
-                    $pdo->commit();
-
-                    $response['success'] = true;
-                    $response['message'] = 'Deck copied successfully!';
-                    $response['deck_id'] = $new_deck_id;
-                } catch (Exception $e) {
-                    $pdo->rollBack();
-                    $response['message'] = 'Failed to copy deck';
-                }
-            }
-        }
-    } elseif ($action === 'like') {
-        $deck_id = intval($_POST['deck_id'] ?? 0);
-
-        if ($deck_id <= 0) {
-            $response['message'] = 'Invalid deck ID';
-        } else {
-            try {
-                $stmt = $pdo->prepare("INSERT INTO deck_likes (user_id, deck_id) VALUES (?, ?)");
-                $stmt->execute([$user['id'], $deck_id]);
-
-                // Update like count
-                $stmt = $pdo->prepare("UPDATE decks SET like_count = like_count + 1 WHERE id = ?");
-                $stmt->execute([$deck_id]);
-
-                $response['success'] = true;
-                $response['message'] = 'Deck liked!';
-            } catch (Exception $e) {
-                $response['message'] = 'Already liked';
-            }
-        }
-    } elseif ($action === 'unlike') {
-        $deck_id = intval($_POST['deck_id'] ?? 0);
-
-        if ($deck_id <= 0) {
-            $response['message'] = 'Invalid deck ID';
-        } else {
-            $stmt = $pdo->prepare("DELETE FROM deck_likes WHERE user_id = ? AND deck_id = ?");
-            $stmt->execute([$user['id'], $deck_id]);
-
-            if ($stmt->rowCount() > 0) {
-                // Update like count
-                $stmt = $pdo->prepare("UPDATE decks SET like_count = like_count - 1 WHERE id = ?");
-                $stmt->execute([$deck_id]);
-
-                $response['success'] = true;
-                $response['message'] = 'Deck unliked';
+            // Must match legend's champion tag
+            if ($card['champion'] !== $championLegend['champion']) {
+                throw new Exception('Signature cards must match Champion Legend\'s tag');
             }
         }
     }
+
+    if ($signatureCount > 3) {
+        throw new Exception('Maximum 3 Signature cards allowed');
+    }
+
+    // Validate domain identity for all cards
+    $legendDomain = $championLegend['region'];
+    $allCards = array_merge($mainDeck, $runeDeck, $battlefields);
+
+    foreach ($allCards as $cardId) {
+        $stmt = $pdo->prepare("SELECT region, name FROM cards WHERE id = ?");
+        $stmt->execute([$cardId]);
+        $card = $stmt->fetch();
+
+        if ($card && $card['region'] && $card['region'] !== 'None') {
+            if ($card['region'] !== $legendDomain) {
+                throw new Exception("Card '{$card['name']}' does not match Domain Identity");
+            }
+        }
+    }
+
+    // Validate battlefield uniqueness (no duplicate names)
+    $battlefieldNames = [];
+    foreach ($battlefields as $cardId) {
+        $stmt = $pdo->prepare("SELECT name FROM cards WHERE id = ?");
+        $stmt->execute([$cardId]);
+        $card = $stmt->fetch();
+
+        if (in_array($card['name'], $battlefieldNames)) {
+            throw new Exception("Cannot include more than one Battlefield of the same name ({$card['name']})");
+        }
+        $battlefieldNames[] = $card['name'];
+    }
+
+    // Begin transaction
+    $pdo->beginTransaction();
+
+    try {
+        $deckId = $input['deck_id'] ?? null;
+
+        if ($deckId) {
+            // Update existing deck
+            $stmt = $pdo->prepare("
+                UPDATE decks
+                SET deck_name = ?,
+                    description = ?,
+                    champion_legend_id = ?,
+                    chosen_champion_id = ?,
+                    updated_at = NOW()
+                WHERE id = ? AND user_id = ?
+            ");
+            $stmt->execute([
+                $input['deck_name'],
+                $input['description'] ?? '',
+                $input['champion_legend_id'],
+                $input['chosen_champion_id'],
+                $deckId,
+                $user['id']
+            ]);
+
+            // Delete existing deck cards
+            $stmt = $pdo->prepare("DELETE FROM deck_cards WHERE deck_id = ?");
+            $stmt->execute([$deckId]);
+        } else {
+            // Create new deck
+            $stmt = $pdo->prepare("
+                INSERT INTO decks (user_id, deck_name, description, champion_legend_id, chosen_champion_id, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, NOW(), NOW())
+            ");
+            $stmt->execute([
+                $user['id'],
+                $input['deck_name'],
+                $input['description'] ?? '',
+                $input['champion_legend_id'],
+                $input['chosen_champion_id']
+            ]);
+            $deckId = $pdo->lastInsertId();
+        }
+
+        // Insert main deck cards
+        foreach ($mainDeck as $cardId) {
+            insertDeckCard($pdo, $deckId, $cardId, 'main_deck');
+        }
+
+        // Insert rune deck cards
+        foreach ($runeDeck as $cardId) {
+            insertDeckCard($pdo, $deckId, $cardId, 'rune_deck');
+        }
+
+        // Insert battlefield cards
+        foreach ($battlefields as $cardId) {
+            insertDeckCard($pdo, $deckId, $cardId, 'battlefields');
+        }
+
+        $pdo->commit();
+
+        echo json_encode([
+            'success' => true,
+            'message' => 'Deck saved successfully',
+            'deck_id' => $deckId
+        ]);
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        throw $e;
+    }
 }
 
-echo json_encode($response);
+/**
+ * Helper: Insert deck card with proper handling
+ */
+function insertDeckCard($pdo, $deckId, $cardId, $deckSlot) {
+    // Check if card already exists in this slot
+    $stmt = $pdo->prepare("
+        SELECT id, quantity
+        FROM deck_cards
+        WHERE deck_id = ? AND card_id = ? AND deck_slot = ?
+    ");
+    $stmt->execute([$deckId, $cardId, $deckSlot]);
+    $existing = $stmt->fetch();
+
+    if ($existing) {
+        // Increment quantity
+        $stmt = $pdo->prepare("
+            UPDATE deck_cards
+            SET quantity = quantity + 1
+            WHERE id = ?
+        ");
+        $stmt->execute([$existing['id']]);
+    } else {
+        // Insert new
+        $stmt = $pdo->prepare("
+            INSERT INTO deck_cards (deck_id, card_id, quantity, deck_slot)
+            VALUES (?, ?, 1, ?)
+        ");
+        $stmt->execute([$deckId, $cardId, $deckSlot]);
+    }
+}

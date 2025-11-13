@@ -44,7 +44,13 @@
         }
 
         try {
+            console.log('=== IMPORT DEBUG ===');
+            console.log('Input deck code:', deckCode);
+            console.log('cardCodeDatabase exists?', !!window.cardCodeDatabase);
+            console.log('cardCodeDatabase sample keys:', window.cardCodeDatabase ? Object.keys(window.cardCodeDatabase).slice(0, 5) : 'N/A');
+
             const cards = parseDeckCode(deckCode);
+            console.log('Parsed cards:', cards);
 
             if (cards.length === 0) {
                 showImportResult('No valid cards found in the deck code', 'error');
@@ -64,7 +70,9 @@
             let notFound = [];
 
             cards.forEach(({ cardCode, quantity }) => {
+                console.log('Looking up card:', cardCode);
                 const card = findCardByCode(cardCode);
+                console.log('Found card:', card);
 
                 if (card) {
                     // Add the card the specified number of times
@@ -131,7 +139,8 @@
 
     /**
      * Parse TTS format: OGN-259-1 OGN-076-2 OGN-045-1
-     * Format: CARDCODE-QUANTITY
+     * Format is: CARDCODE-VARIANT where variant is usually 1 (normal) or 2 (showcase)
+     * We extract the base card code (e.g., OGN-259) and look it up by card_code
      */
     function parseTTSFormat(deckCode) {
         const cards = [];
@@ -141,17 +150,20 @@
         const entries = deckCode.split(/\s+/);
 
         entries.forEach(entry => {
-            // Match pattern: XXX-NNN-Q where Q is quantity
-            const match = entry.match(/^([A-Z]+-\d+)-(\d+)$/);
+            entry = entry.trim();
+            if (!entry) return;
+
+            // Match pattern: XXX-NNN-V where V is variant (1 or 2)
+            const match = entry.match(/^([A-Z]+-\d+)-\d+$/);
 
             if (match) {
-                const cardCode = match[1]; // e.g., OGN-259
-                const quantity = parseInt(match[2], 10); // e.g., 1
+                const cardCode = match[1]; // e.g., OGN-259 (base card code)
 
+                // Count each occurrence
                 if (cardMap.has(cardCode)) {
-                    cardMap.set(cardCode, cardMap.get(cardCode) + quantity);
+                    cardMap.set(cardCode, cardMap.get(cardCode) + 1);
                 } else {
-                    cardMap.set(cardCode, quantity);
+                    cardMap.set(cardCode, 1);
                 }
             }
         });
@@ -217,21 +229,35 @@
     }
 
     /**
-     * Find card by card code
-     * @param {string} cardCode - e.g., "OGN-259"
+     * Find card by card code (case-insensitive)
+     * @param {string} cardCode - e.g., "OGN-259" (base card code without variant)
      * @returns {object|null} - Card object or null
      */
     function findCardByCode(cardCode) {
+        // Normalize to lowercase for case-insensitive lookup
+        const normalizedCode = cardCode.toLowerCase();
+        console.log('findCardByCode - input:', cardCode, 'normalized:', normalizedCode);
+
         // Use the global cardCodeDatabase created in the HTML
-        if (window.cardCodeDatabase && window.cardCodeDatabase[cardCode]) {
-            return window.cardCodeDatabase[cardCode];
+        // This database maps by card_code (without variant suffix)
+        if (window.cardCodeDatabase && window.cardCodeDatabase[normalizedCode]) {
+            console.log('Found in cardCodeDatabase');
+            return window.cardCodeDatabase[normalizedCode];
         }
 
-        // Fallback: search through all cards
+        // Fallback: search through all cards by card_code (case-insensitive)
         if (window.allCardsData) {
-            return window.allCardsData.find(card => card.card_code === cardCode);
+            console.log('Searching in allCardsData...');
+            const card = window.allCardsData.find(card =>
+                card.card_code && card.card_code.toLowerCase() === normalizedCode
+            );
+            if (card) {
+                console.log('Found in allCardsData');
+                return card;
+            }
         }
 
+        console.log('Card not found');
         return null;
     }
 

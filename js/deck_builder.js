@@ -1,721 +1,887 @@
-// Deck Builder JavaScript - Fully Functional
-let currentDeck = [];
-let deckChangeTimeout = null;
-let isPublished = false;
-let selectedFeaturedCardId = null;
+// Riftbound Rule-Enforced Deck Builder
+// Implements all official Riftbound deck construction rules
 
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
-    // Load existing deck if editing
-    if (currentDeckCards && currentDeckCards.length > 0) {
-        currentDeckCards.forEach(card => {
-            for (let i = 0; i < card.quantity; i++) {
-                addCardToDeck(card.id, card.name, card.energy);
+(function() {
+    'use strict';
+
+    // Deck state
+    let selectedChampionLegend = null;
+    let chosenChampion = null;
+    let mainDeck = []; // Array of {cardId, quantity}
+    let runeDeck = []; // Array of {cardId, quantity}
+    let battlefields = []; // Array of {cardId, quantity}
+
+    // Rule constants
+    const RULES = {
+        MAIN_DECK_MIN: 40,
+        MAIN_DECK_MAX: null, // No maximum
+        RUNE_DECK_SIZE: 12,
+        MAX_COPIES_PER_CARD: 3,
+        MAX_SIGNATURE_CARDS: 3
+    };
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', init);
+
+    function init() {
+        setupTabs();
+        loadExistingDeck();
+        setupEventListeners();
+    }
+
+    /**
+     * Setup deck building tabs
+     */
+    function setupTabs() {
+        const tabs = document.querySelectorAll('.deck-tab');
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabName = tab.dataset.tab;
+                switchTab(tabName);
+            });
+        });
+    }
+
+    function switchTab(tabName) {
+        // Update tab buttons
+        document.querySelectorAll('.deck-tab').forEach(tab => {
+            tab.classList.toggle('active', tab.dataset.tab === tabName);
+        });
+
+        // Update tab content
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.remove('active');
+        });
+        document.getElementById(`${tabName}-content`).classList.add('active');
+
+        // Render appropriate card grid
+        renderCardGrid(tabName);
+    }
+
+    /**
+     * Load existing deck if editing
+     */
+    function loadExistingDeck() {
+        if (!currentDeckData) return;
+
+        // Load champion legend
+        if (currentDeckData.champion_legend_id) {
+            const legend = window.cardDatabase[currentDeckData.champion_legend_id];
+            if (legend) {
+                selectChampionLegend(legend);
             }
+        }
+
+        // Load chosen champion
+        if (currentDeckData.chosen_champion_id) {
+            const champion = window.cardDatabase[currentDeckData.chosen_champion_id];
+            if (champion) {
+                setChosenChampion(champion);
+            }
+        }
+
+        // Load main deck
+        if (currentDeckData.main_deck) {
+            currentDeckData.main_deck.forEach(card => {
+                for (let i = 0; i < card.quantity; i++) {
+                    addToMainDeck(card.id, true);
+                }
+            });
+        }
+
+        // Load rune deck
+        if (currentDeckData.rune_deck) {
+            currentDeckData.rune_deck.forEach(card => {
+                for (let i = 0; i < card.quantity; i++) {
+                    addToRuneDeck(card.id, true);
+                }
+            });
+        }
+
+        // Load battlefields
+        if (currentDeckData.battlefields) {
+            currentDeckData.battlefields.forEach(card => {
+                for (let i = 0; i < card.quantity; i++) {
+                    addToBattlefields(card.id, true);
+                }
+            });
+        }
+
+        updateAllCounts();
+        validateDeck();
+    }
+
+    /**
+     * Setup event listeners
+     */
+    function setupEventListeners() {
+        // Save deck
+        document.getElementById('saveDeckBtn')?.addEventListener('click', saveDeck);
+
+        // Clear deck
+        document.getElementById('clearDeckBtn')?.addEventListener('click', clearDeck);
+
+        // Export deck
+        document.getElementById('exportDeckBtn')?.addEventListener('click', exportDeck);
+
+        // Search inputs
+        document.getElementById('mainSearchInput')?.addEventListener('input', (e) => {
+            filterCards('main-deck', e.target.value);
         });
-    }
 
-    // Set published status and featured card
-    isPublished = currentDeckPublished;
-    selectedFeaturedCardId = currentFeaturedCardId;
-    updatePublishButton();
-
-    // Wire up event listeners
-    setupFilters();
-    setupDeckActions();
-    setupModal();
-    setupFeaturedCardModal();
-
-    // Initial update
-    updateDeckDisplay();
-});
-
-// =============================================================================
-// DECK MANAGEMENT
-// =============================================================================
-
-function addCardToDeck(cardId, cardName, cardCost) {
-    const existingCard = currentDeck.find(c => c.id === cardId);
-
-    if (existingCard) {
-        // Check copy limit (3 per card)
-        if (existingCard.quantity >= 3) {
-            showNotification('Maximum 3 copies per card', 'error');
-            return;
-        }
-        existingCard.quantity++;
-    } else {
-        currentDeck.push({
-            id: cardId,
-            name: cardName,
-            cost: cardCost,
-            quantity: 1
+        document.getElementById('runeSearchInput')?.addEventListener('input', (e) => {
+            filterCards('rune-deck', e.target.value);
         });
-    }
 
-    updateDeckDisplay();
-    showNotification('Card added to deck', 'success');
-}
-
-function removeCardFromDeck(cardId) {
-    const cardIndex = currentDeck.findIndex(c => c.id === cardId);
-
-    if (cardIndex === -1) return;
-
-    if (currentDeck[cardIndex].quantity > 1) {
-        currentDeck[cardIndex].quantity--;
-    } else {
-        currentDeck.splice(cardIndex, 1);
-    }
-
-    updateDeckDisplay();
-}
-
-function removeAllCopies(cardId) {
-    currentDeck = currentDeck.filter(c => c.id !== cardId);
-    updateDeckDisplay();
-}
-
-function clearDeck() {
-    if (confirm('Clear all cards from this deck?')) {
-        currentDeck = [];
-        document.getElementById('deckName').value = 'Untitled Deck';
-        document.getElementById('deckDescription').value = '';
-        document.getElementById('deckId').value = '';
-        updateDeckDisplay();
-        showNotification('Deck cleared', 'success');
-    }
-}
-
-// =============================================================================
-// DECK DISPLAY
-// =============================================================================
-
-function updateDeckDisplay() {
-    const deckList = document.getElementById('deckList');
-    const totalCards = currentDeck.reduce((sum, card) => sum + card.quantity, 0);
-    const uniqueCards = currentDeck.length;
-
-    // Update stats
-    document.getElementById('cardCount').textContent = totalCards;
-    document.getElementById('uniqueCards').textContent = uniqueCards;
-
-    // Calculate average cost
-    let totalCost = 0;
-    currentDeck.forEach(card => {
-        totalCost += (card.cost || 0) * card.quantity;
-    });
-    const avgCost = totalCards > 0 ? (totalCost / totalCards).toFixed(1) : 0;
-    document.getElementById('avgCost').textContent = avgCost;
-
-    // Check for warnings
-    updateDeckWarnings(totalCards);
-
-    // Render deck list
-    if (currentDeck.length === 0) {
-        deckList.innerHTML = '<div class="empty-deck"><p>Click cards from the library to add them to your deck</p></div>';
-        return;
-    }
-
-    // Sort cards by cost, then name
-    const sortedDeck = [...currentDeck].sort((a, b) => {
-        if (a.cost !== b.cost) return a.cost - b.cost;
-        return a.name.localeCompare(b.name);
-    });
-
-    // Group by card type
-    const champions = [];
-    const units = [];
-    const spells = [];
-    const other = [];
-
-    sortedDeck.forEach(deckCard => {
-        const card = cardDatabase[deckCard.id];
-        if (!card) return;
-
-        const cardType = card.card_type?.toLowerCase();
-        if (card.rarity?.toLowerCase() === 'champion') {
-            champions.push({ ...deckCard, card });
-        } else if (cardType === 'unit') {
-            units.push({ ...deckCard, card });
-        } else if (cardType === 'spell') {
-            spells.push({ ...deckCard, card });
-        } else {
-            other.push({ ...deckCard, card });
-        }
-    });
-
-    let html = '';
-
-    if (champions.length > 0) {
-        html += renderDeckSection('Champions', champions);
-    }
-    if (units.length > 0) {
-        html += renderDeckSection('Units', units);
-    }
-    if (spells.length > 0) {
-        html += renderDeckSection('Spells', spells);
-    }
-    if (other.length > 0) {
-        html += renderDeckSection('Other', other);
-    }
-
-    deckList.innerHTML = html;
-}
-
-function renderDeckSection(title, cards) {
-    let html = `<div class="deck-section">`;
-    html += `<div class="deck-section-title">${title} (${cards.reduce((sum, c) => sum + c.quantity, 0)})</div>`;
-
-    cards.forEach(deckCard => {
-        const card = deckCard.card;
-        const owned = userCollection[deckCard.id] || 0;
-        const insufficient = deckCard.quantity > owned;
-
-        html += `
-            <div class="deck-card ${insufficient ? 'insufficient-copies' : ''}">
-                <div class="deck-card-info">
-                    <div class="deck-card-cost">${card.energy ?? '-'}</div>
-                    <div class="deck-card-name">${card.name}</div>
-                    <div class="deck-card-quantity">x${deckCard.quantity}</div>
-                </div>
-                <div class="deck-card-controls">
-                    <button class="btn-icon" onclick="addCardToDeck(${deckCard.id}, '${card.name.replace(/'/g, "\\'")}', ${card.energy ?? 0})" title="Add one">+</button>
-                    <button class="btn-icon" onclick="removeCardFromDeck(${deckCard.id})" title="Remove one">-</button>
-                    <button class="btn-icon btn-danger" onclick="removeAllCopies(${deckCard.id})" title="Remove all">×</button>
-                </div>
-            </div>
-        `;
-    });
-
-    html += `</div>`;
-    return html;
-}
-
-function updateDeckWarnings(totalCards) {
-    const warningsDiv = document.getElementById('deckWarnings');
-    const warnings = [];
-
-    // Check deck size
-    if (totalCards < 40) {
-        warnings.push(`Deck needs at least 40 cards (currently ${totalCards})`);
-    } else if (totalCards > 60) {
-        warnings.push(`Deck should not exceed 60 cards (currently ${totalCards})`);
-    }
-
-    // Check for cards not in collection
-    const missingCards = [];
-    currentDeck.forEach(deckCard => {
-        const owned = userCollection[deckCard.id] || 0;
-        if (deckCard.quantity > owned) {
-            const card = cardDatabase[deckCard.id];
-            const shortage = deckCard.quantity - owned;
-            missingCards.push(`${card.name} (need ${shortage} more)`);
-        }
-    });
-
-    if (missingCards.length > 0) {
-        warnings.push(`Missing cards: ${missingCards.join(', ')}`);
-    }
-
-    // Display warnings
-    if (warnings.length > 0) {
-        warningsDiv.innerHTML = `
-            <div class="warning-box">
-                <h4>⚠️ Deck Warnings</h4>
-                <ul>
-                    ${warnings.map(w => `<li>${w}</li>`).join('')}
-                </ul>
-            </div>
-        `;
-    } else {
-        warningsDiv.innerHTML = '';
-    }
-}
-
-// =============================================================================
-// FILTERING
-// =============================================================================
-
-function setupFilters() {
-    const searchInput = document.getElementById('cardSearch');
-    const energyFilter = document.getElementById('energyFilter');
-    const typeFilter = document.getElementById('typeFilter');
-    const rarityFilter = document.getElementById('rarityFilter');
-    const regionFilter = document.getElementById('regionFilter');
-
-    searchInput.addEventListener('input', filterLibrary);
-    energyFilter.addEventListener('change', filterLibrary);
-    typeFilter.addEventListener('change', filterLibrary);
-    rarityFilter.addEventListener('change', filterLibrary);
-    regionFilter.addEventListener('change', filterLibrary);
-}
-
-function filterLibrary() {
-    const searchTerm = document.getElementById('cardSearch').value.toLowerCase();
-    const energyValue = document.getElementById('energyFilter').value;
-    const typeValue = document.getElementById('typeFilter').value.toLowerCase();
-    const rarityValue = document.getElementById('rarityFilter').value.toLowerCase();
-    const regionValue = document.getElementById('regionFilter').value.toLowerCase();
-
-    const cards = document.querySelectorAll('.library-card');
-
-    cards.forEach(card => {
-        const name = card.dataset.name;
-        const energy = card.dataset.energy;
-        const type = card.dataset.type;
-        const rarity = card.dataset.rarity;
-        const region = card.dataset.region;
-
-        let show = true;
-
-        // Search filter
-        if (searchTerm && !name.includes(searchTerm)) {
-            show = false;
-        }
-
-        // Energy filter
-        if (energyValue && energy !== energyValue) {
-            show = false;
-        }
+        document.getElementById('battlefieldSearchInput')?.addEventListener('input', (e) => {
+            filterCards('battlefields', e.target.value);
+        });
 
         // Type filter
-        if (typeValue && type !== typeValue) {
-            show = false;
-        }
+        document.getElementById('mainTypeFilter')?.addEventListener('change', () => {
+            renderCardGrid('main-deck');
+        });
 
         // Rarity filter
-        if (rarityValue && rarity !== rarityValue) {
-            show = false;
-        }
-
-        // Region filter
-        if (regionValue && region !== regionValue) {
-            show = false;
-        }
-
-        card.style.display = show ? '' : 'none';
-    });
-}
-
-// =============================================================================
-// DECK ACTIONS (Save, Export, etc.)
-// =============================================================================
-
-function setupDeckActions() {
-    document.getElementById('saveDeckBtn').addEventListener('click', saveDeck);
-    document.getElementById('clearDeckBtn').addEventListener('click', clearDeck);
-    document.getElementById('exportDeckBtn').addEventListener('click', exportDeck);
-    document.getElementById('publishToggleBtn').addEventListener('click', togglePublish);
-}
-
-async function saveDeck() {
-    const deckName = document.getElementById('deckName').value.trim();
-    const deckDescription = document.getElementById('deckDescription').value.trim();
-    const deckId = document.getElementById('deckId').value;
-
-    if (!deckName) {
-        showNotification('Please enter a deck name', 'error');
-        return;
+        document.getElementById('mainRarityFilter')?.addEventListener('change', () => {
+            renderCardGrid('main-deck');
+        });
     }
 
-    if (currentDeck.length === 0) {
-        showNotification('Cannot save an empty deck', 'error');
-        return;
-    }
+    /**
+     * Select Champion Legend (Step 1)
+     */
+    window.selectChampionLegend = function(legend) {
+        selectedChampionLegend = legend;
 
-    const totalCards = currentDeck.reduce((sum, card) => sum + card.quantity, 0);
-    if (totalCards < 40) {
-        if (!confirm(`Your deck only has ${totalCards} cards. Decks should have at least 40 cards. Save anyway?`)) {
-            return;
-        }
-    }
-
-    const formData = new FormData();
-    formData.append('action', 'save');
-    formData.append('deck_id', deckId);
-    formData.append('deck_name', deckName);
-    formData.append('description', deckDescription);
-    formData.append('cards', JSON.stringify(currentDeck));
-
-    try {
-        const response = await fetch('api/deck.php', {
-            method: 'POST',
-            body: formData
+        // Update UI
+        document.querySelectorAll('.legend-card').forEach(card => {
+            card.classList.toggle('selected',
+                parseInt(card.dataset.legendId) === legend.id);
         });
 
-        const data = await response.json();
+        // Show main builder
+        document.getElementById('main-builder').style.display = 'block';
 
-        if (data.success) {
-            showNotification(data.message, 'success');
+        // Scroll to main builder
+        document.getElementById('main-builder').scrollIntoView({ behavior: 'smooth' });
 
-            // Update deck ID if this was a new deck
-            if (data.deck_id) {
-                document.getElementById('deckId').value = data.deck_id;
+        // Display selected legend
+        displaySelectedLegend();
 
-                // Update URL without reloading
-                const newUrl = `deck_builder.php?deck_id=${data.deck_id}`;
-                window.history.replaceState({}, '', newUrl);
+        // Render card grids with domain filtering
+        renderCardGrid('main-deck');
+        renderCardGrid('rune-deck');
+        renderCardGrid('battlefields');
 
-                // Show publish button now that deck is saved
-                updatePublishButton();
+        validateDeck();
+    };
+
+    /**
+     * Display selected legend in deck panel
+     */
+    function displaySelectedLegend() {
+        const container = document.getElementById('selectedLegendDisplay');
+        if (!selectedChampionLegend) {
+            container.innerHTML = '';
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="legend-display-header">Champion Legend</div>
+            <div class="legend-display-content">
+                ${selectedChampionLegend.card_art_url ?
+                    `<img src="${selectedChampionLegend.card_art_url}" alt="${selectedChampionLegend.name}">`
+                    : ''}
+                <div class="legend-display-info">
+                    <div class="legend-display-name">${selectedChampionLegend.name}</div>
+                    <div class="legend-display-domain">
+                        Domain: ${selectedChampionLegend.region || 'None'}
+                        ${selectedChampionLegend.champion ? `<br>Tag: ${selectedChampionLegend.champion}` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Set Chosen Champion
+     */
+    function setChosenChampion(champion) {
+        chosenChampion = champion;
+
+        const slot = document.getElementById('chosenChampionSlot');
+        slot.classList.add('filled');
+        slot.innerHTML = `
+            <div class="champion-display">
+                ${champion.card_art_url ?
+                    `<img src="${champion.card_art_url}" alt="${champion.name}">`
+                    : ''}
+                <div class="champion-display-info">
+                    <div class="champion-display-name">${champion.name}</div>
+                    <div class="champion-display-tag">Tag: ${champion.champion || 'None'}</div>
+                </div>
+                <button class="remove-champion-btn" onclick="removeChosenChampion()">Remove</button>
+            </div>
+        `;
+
+        // Hide the filter hint
+        const hint = document.getElementById('championFilterHint');
+        if (hint) {
+            hint.style.display = 'none';
+        }
+
+        // Re-render the grid to remove the badges from cards
+        renderCardGrid('main-deck');
+
+        validateDeck();
+    }
+
+    /**
+     * Remove Chosen Champion
+     */
+    window.removeChosenChampion = function() {
+        chosenChampion = null;
+
+        const slot = document.getElementById('chosenChampionSlot');
+        slot.classList.remove('filled');
+        slot.innerHTML = '<p class="empty-slot">No Chosen Champion selected yet.<br><small>Click a matching champion card below to set.</small></p>';
+
+        // Show the filter hint again
+        const hint = document.getElementById('championFilterHint');
+        if (hint) {
+            hint.style.display = 'block';
+        }
+
+        // Re-render to show badges again
+        renderCardGrid('main-deck');
+
+        validateDeck();
+    };
+
+    /**
+     * Render card grid based on active tab
+     */
+    function renderCardGrid(tabName) {
+        let cards, gridId;
+
+        switch(tabName) {
+            case 'main-deck':
+                cards = getValidMainDeckCards();
+                gridId = 'mainDeckCardGrid';
+                break;
+            case 'rune-deck':
+                cards = getValidRuneCards();
+                gridId = 'runeDeckCardGrid';
+                break;
+            case 'battlefields':
+                cards = getValidBattlefieldCards();
+                gridId = 'battlefieldCardGrid';
+                break;
+            default:
+                return;
+        }
+
+        const grid = document.getElementById(gridId);
+        if (!grid) return;
+
+        grid.innerHTML = '';
+
+        if (cards.length === 0) {
+            grid.innerHTML = '<p style="text-align: center; color: #999; padding: 2rem;">No cards available</p>';
+            return;
+        }
+
+        cards.forEach(card => {
+            const cardDiv = createCardElement(card, tabName);
+            grid.appendChild(cardDiv);
+        });
+    }
+
+    /**
+     * Get valid main deck cards (filtered by domain identity and rules)
+     */
+    function getValidMainDeckCards() {
+        if (!selectedChampionLegend) return [];
+
+        let cards = window.mainDeckCards.filter(card => {
+            // Exclude legends, runes, battlefields
+            if (['Legend', 'Rune', 'Battlefield'].includes(card.card_type)) {
+                return false;
             }
-        } else {
-            showNotification(data.message, 'error');
-        }
-    } catch (error) {
-        console.error('Save error:', error);
-        showNotification('Failed to save deck', 'error');
-    }
-}
 
-function updatePublishButton() {
-    const deckId = document.getElementById('deckId').value;
-    const publishBtn = document.getElementById('publishToggleBtn');
-    const publishBtnText = document.getElementById('publishBtnText');
-
-    if (deckId) {
-        publishBtn.style.display = 'inline-block';
-        publishBtnText.textContent = isPublished ? 'Unpublish Deck' : 'Publish Deck';
-        publishBtn.className = isPublished ? 'btn btn-secondary btn-small' : 'btn btn-primary btn-small';
-    } else {
-        publishBtn.style.display = 'none';
-    }
-}
-
-async function togglePublish() {
-    const deckId = document.getElementById('deckId').value;
-
-    if (!deckId) {
-        showNotification('Please save the deck first', 'error');
-        return;
-    }
-
-    if (isPublished) {
-        // Unpublish - just confirm and do it
-        if (!confirm('Unpublish this deck? Other players will no longer be able to view it.')) {
-            return;
-        }
-
-        await publishDeck('unpublish', deckId, null);
-    } else {
-        // Publish - show featured card selection modal
-        if (currentDeck.length === 0) {
-            showNotification('Cannot publish an empty deck', 'error');
-            return;
-        }
-
-        showFeaturedCardSelection();
-    }
-}
-
-async function publishDeck(action, deckId, featuredCardId) {
-    const formData = new FormData();
-    formData.append('action', action);
-    formData.append('deck_id', deckId);
-
-    if (action === 'publish' && featuredCardId) {
-        formData.append('featured_card_id', featuredCardId);
-    }
-
-    try {
-        const response = await fetch('api/deck.php', {
-            method: 'POST',
-            body: formData
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            isPublished = !isPublished;
-            if (action === 'publish') {
-                selectedFeaturedCardId = featuredCardId;
+            // Check domain identity
+            if (!isValidDomainIdentity(card)) {
+                return false;
             }
-            updatePublishButton();
-            showNotification(data.message, 'success');
 
-            // Reload page to show published status
-            setTimeout(() => {
-                location.reload();
-            }, 1500);
-        } else {
-            showNotification(data.message, 'error');
-        }
-    } catch (error) {
-        console.error('Publish error:', error);
-        showNotification('Failed to update deck status', 'error');
-    }
-}
-
-async function exportDeck() {
-    const deckId = document.getElementById('deckId').value;
-
-    if (!deckId) {
-        showNotification('Please save the deck first', 'error');
-        return;
-    }
-
-    const formData = new FormData();
-    formData.append('action', 'export');
-    formData.append('deck_id', deckId);
-
-    try {
-        const response = await fetch('api/deck.php', {
-            method: 'POST',
-            body: formData
+            return true;
         });
 
-        const data = await response.json();
+        // Apply type filter
+        const typeFilter = document.getElementById('mainTypeFilter')?.value;
+        if (typeFilter) {
+            cards = cards.filter(c => c.card_type === typeFilter ||
+                (typeFilter === 'Champion' && c.rarity === 'Champion'));
+        }
 
-        if (data.success) {
-            // Copy to clipboard
-            navigator.clipboard.writeText(data.deck_code).then(() => {
-                showNotification('Deck code copied to clipboard!', 'success');
+        // Apply rarity filter
+        const rarityFilter = document.getElementById('mainRarityFilter')?.value;
+        if (rarityFilter) {
+            cards = cards.filter(c => c.rarity === rarityFilter);
+        }
 
-                // Also show it in an alert for manual copy if needed
-                prompt('Deck code (already copied to clipboard):', data.deck_code);
-            }).catch(() => {
-                // Fallback: show in prompt
-                prompt('Copy this deck code:', data.deck_code);
+        return cards;
+    }
+
+    /**
+     * Get valid rune cards
+     */
+    function getValidRuneCards() {
+        if (!selectedChampionLegend) return [];
+
+        return window.runeCards.filter(card => {
+            return isValidDomainIdentity(card);
+        });
+    }
+
+    /**
+     * Get valid battlefield cards
+     */
+    function getValidBattlefieldCards() {
+        if (!selectedChampionLegend) return [];
+
+        return window.battlefieldCards.filter(card => {
+            return isValidDomainIdentity(card);
+        });
+    }
+
+    /**
+     * Check if card matches domain identity (Rule 103.1.b)
+     */
+    function isValidDomainIdentity(card) {
+        if (!selectedChampionLegend) return false;
+
+        const legendDomain = selectedChampionLegend.region;
+        const cardDomain = card.region;
+
+        // If card has no domain, it's valid
+        if (!cardDomain || cardDomain === 'None') {
+            return true;
+        }
+
+        // If legend has no domain, only neutral cards allowed
+        if (!legendDomain) {
+            return !cardDomain || cardDomain === 'None';
+        }
+
+        // Simple domain matching (you may need to expand for multi-domain cards)
+        return cardDomain === legendDomain;
+    }
+
+    /**
+     * Create card element
+     */
+    function createCardElement(card, deckType) {
+        const div = document.createElement('div');
+        div.className = 'library-card';
+        div.dataset.cardId = card.id;
+
+        // Check if max copies reached
+        const currentCount = getCardCount(card.id, deckType);
+        const isMaxCopies = currentCount >= RULES.MAX_COPIES_PER_CARD;
+
+        if (isMaxCopies) {
+            div.classList.add('max-copies');
+        }
+
+        // Check if it's a valid chosen champion
+        const isChampion = card.card_type === 'Champion' || card.rarity === 'Champion';
+        const matchesLegendTag = selectedChampionLegend && card.champion === selectedChampionLegend.champion;
+        const canBeChosenChampion = isChampion && matchesLegendTag && !chosenChampion && card.card_type !== 'Signature';
+
+        // Add visual indicator for valid chosen champions
+        if (canBeChosenChampion) {
+            div.classList.add('valid-chosen-champion');
+        }
+
+        div.innerHTML = `
+            ${card.card_art_url ?
+                `<img src="${card.card_art_url}" alt="${card.name}">`
+                : `<div style="padding: 2rem; background: #f0f0f0;">${card.name}</div>`}
+            ${currentCount > 0 ? `<div class="card-count-badge">×${currentCount}</div>` : ''}
+            ${userCollection[card.id] ? `<div class="collection-badge-lib">${userCollection[card.id]}</div>` : ''}
+            ${canBeChosenChampion ? `<div class="chosen-champion-badge">Set as Champion</div>` : ''}
+        `;
+
+        // Add click handler
+        div.addEventListener('click', () => {
+            if (isMaxCopies) return;
+
+            if (deckType === 'main-deck') {
+                // Check if clicking on a valid chosen champion
+                if (canBeChosenChampion) {
+                    if (confirm(`Set ${card.name} as your Chosen Champion?\n\nYou can still add up to 3 copies to your Main Deck.`)) {
+                        setChosenChampion(card);
+                        addToMainDeck(card.id);
+                        return;
+                    }
+                }
+                addToMainDeck(card.id);
+            } else if (deckType === 'rune-deck') {
+                addToRuneDeck(card.id);
+            } else if (deckType === 'battlefields') {
+                addToBattlefields(card.id);
+            }
+        });
+
+        return div;
+    }
+
+    /**
+     * Get current count of a card in a deck
+     */
+    function getCardCount(cardId, deckType) {
+        let deck;
+        if (deckType === 'main-deck') deck = mainDeck;
+        else if (deckType === 'rune-deck') deck = runeDeck;
+        else if (deckType === 'battlefields') deck = battlefields;
+        else return 0;
+
+        return deck.filter(c => c === cardId).length;
+    }
+
+    /**
+     * Add card to main deck
+     */
+    function addToMainDeck(cardId, silent = false) {
+        const card = window.cardDatabase[cardId];
+        if (!card) return;
+
+        // Check 3-copy limit (Rule 103.2.b)
+        const currentCount = getCardCount(cardId, 'main-deck');
+        if (currentCount >= RULES.MAX_COPIES_PER_CARD) {
+            if (!silent) alert(`Maximum ${RULES.MAX_COPIES_PER_CARD} copies allowed per card`);
+            return;
+        }
+
+        // Check signature card limit (Rule 103.2.d)
+        if (card.card_type === 'Signature') {
+            const signatureCount = mainDeck.filter(id => {
+                const c = window.cardDatabase[id];
+                return c && c.card_type === 'Signature';
+            }).length;
+
+            if (signatureCount >= RULES.MAX_SIGNATURE_CARDS) {
+                if (!silent) alert(`Maximum ${RULES.MAX_SIGNATURE_CARDS} Signature cards allowed`);
+                return;
+            }
+
+            // Must match legend's champion tag
+            if (selectedChampionLegend && card.champion !== selectedChampionLegend.champion) {
+                if (!silent) alert('Signature cards must match your Champion Legend\'s tag');
+                return;
+            }
+        }
+
+        mainDeck.push(cardId);
+        updateDeckDisplay();
+        updateAllCounts();
+        validateDeck();
+        renderCardGrid('main-deck');
+    }
+
+    /**
+     * Add card to rune deck
+     */
+    function addToRuneDeck(cardId, silent = false) {
+        // Check rune deck size (Rule 103.3)
+        if (runeDeck.length >= RULES.RUNE_DECK_SIZE) {
+            if (!silent) alert(`Rune deck must be exactly ${RULES.RUNE_DECK_SIZE} cards`);
+            return;
+        }
+
+        runeDeck.push(cardId);
+        updateDeckDisplay();
+        updateAllCounts();
+        validateDeck();
+        renderCardGrid('rune-deck');
+    }
+
+    /**
+     * Add card to battlefields
+     */
+    function addToBattlefields(cardId, silent = false) {
+        // Check for duplicate names (Rule 103.4.c)
+        const card = window.cardDatabase[cardId];
+        if (!card) return;
+
+        const hasDuplicate = battlefields.some(id => {
+            const existingCard = window.cardDatabase[id];
+            return existingCard && existingCard.name === card.name;
+        });
+
+        if (hasDuplicate) {
+            if (!silent) alert('Cannot include more than one Battlefield of the same name');
+            return;
+        }
+
+        battlefields.push(cardId);
+        updateDeckDisplay();
+        updateAllCounts();
+        validateDeck();
+        renderCardGrid('battlefields');
+    }
+
+    /**
+     * Remove card from deck
+     */
+    window.removeFromDeck = function(cardId, deckType) {
+        let deck;
+        if (deckType === 'main') deck = mainDeck;
+        else if (deckType === 'rune') deck = runeDeck;
+        else if (deckType === 'battlefield') deck = battlefields;
+        else return;
+
+        const index = deck.indexOf(cardId);
+        if (index > -1) {
+            deck.splice(index, 1);
+        }
+
+        updateDeckDisplay();
+        updateAllCounts();
+        validateDeck();
+        renderCardGrid(deckType === 'main' ? 'main-deck' : deckType === 'rune' ? 'rune-deck' : 'battlefields');
+    };
+
+    /**
+     * Update deck display
+     */
+    function updateDeckDisplay() {
+        const container = document.getElementById('deckList');
+        if (!container) return;
+
+        let html = '';
+
+        // Main Deck
+        if (mainDeck.length > 0) {
+            html += '<div class="deck-section">';
+            html += '<div class="deck-section-title">Main Deck <span>' + mainDeck.length + ' cards</span></div>';
+
+            const cardCounts = {};
+            mainDeck.forEach(id => {
+                cardCounts[id] = (cardCounts[id] || 0) + 1;
+            });
+
+            Object.entries(cardCounts).forEach(([cardId, count]) => {
+                const card = window.cardDatabase[cardId];
+                if (!card) return;
+
+                html += `
+                    <div class="deck-card">
+                        <div class="deck-card-info">
+                            <span class="deck-card-cost">${card.energy ?? '-'}</span>
+                            <span class="deck-card-name">${card.name}</span>
+                        </div>
+                        <div class="deck-card-controls">
+                            <span class="deck-card-quantity">×${count}</span>
+                            <button class="card-control-btn remove" onclick="removeFromDeck(${cardId}, 'main')">−</button>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+        }
+
+        // Rune Deck
+        if (runeDeck.length > 0) {
+            html += '<div class="deck-section">';
+            html += '<div class="deck-section-title">Rune Deck <span>' + runeDeck.length + '/12</span></div>';
+
+            const cardCounts = {};
+            runeDeck.forEach(id => {
+                cardCounts[id] = (cardCounts[id] || 0) + 1;
+            });
+
+            Object.entries(cardCounts).forEach(([cardId, count]) => {
+                const card = window.cardDatabase[cardId];
+                if (!card) return;
+
+                html += `
+                    <div class="deck-card">
+                        <div class="deck-card-info">
+                            <span class="deck-card-name">${card.name}</span>
+                        </div>
+                        <div class="deck-card-controls">
+                            <span class="deck-card-quantity">×${count}</span>
+                            <button class="card-control-btn remove" onclick="removeFromDeck(${cardId}, 'rune')">−</button>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+        }
+
+        // Battlefields
+        if (battlefields.length > 0) {
+            html += '<div class="deck-section">';
+            html += '<div class="deck-section-title">Battlefields <span>' + battlefields.length + '</span></div>';
+
+            battlefields.forEach(cardId => {
+                const card = window.cardDatabase[cardId];
+                if (!card) return;
+
+                html += `
+                    <div class="deck-card">
+                        <div class="deck-card-info">
+                            <span class="deck-card-name">${card.name}</span>
+                        </div>
+                        <div class="deck-card-controls">
+                            <button class="card-control-btn remove" onclick="removeFromDeck(${cardId}, 'battlefield')">−</button>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+        }
+
+        if (html === '') {
+            html = '<p style="text-align: center; color: #999; padding: 2rem;">Your deck is empty</p>';
+        }
+
+        container.innerHTML = html;
+    }
+
+    /**
+     * Update all counters
+     */
+    function updateAllCounts() {
+        document.getElementById('mainDeckCount').textContent =
+            `${mainDeck.length}/${RULES.MAIN_DECK_MIN}+`;
+
+        document.getElementById('runeDeckCount').textContent =
+            `${runeDeck.length}/${RULES.RUNE_DECK_SIZE}`;
+
+        document.getElementById('battlefieldCount').textContent = battlefields.length;
+    }
+
+    /**
+     * Validate deck against all rules
+     */
+    function validateDeck() {
+        const warnings = [];
+
+        // Rule 103.1: Must have Champion Legend
+        if (!selectedChampionLegend) {
+            warnings.push({ type: 'error', message: 'Must select a Champion Legend' });
+        }
+
+        // Rule 103.2.a: Must have Chosen Champion
+        if (!chosenChampion) {
+            warnings.push({ type: 'warning', message: 'Must select a Chosen Champion' });
+        } else if (selectedChampionLegend && chosenChampion.champion !== selectedChampionLegend.champion) {
+            warnings.push({ type: 'error', message: 'Chosen Champion must match Legend\'s champion tag' });
+        }
+
+        // Rule 103.2: Main deck minimum
+        if (mainDeck.length < RULES.MAIN_DECK_MIN) {
+            warnings.push({
+                type: 'error',
+                message: `Main deck must have at least ${RULES.MAIN_DECK_MIN} cards (currently ${mainDeck.length})`
             });
         } else {
-            showNotification(data.message, 'error');
+            warnings.push({
+                type: 'success',
+                message: `Main deck: ${mainDeck.length} cards`
+            });
         }
-    } catch (error) {
-        console.error('Export error:', error);
-        showNotification('Failed to export deck', 'error');
-    }
-}
 
-async function deleteDeck(deckId) {
-    if (!confirm('Delete this deck permanently?')) {
-        return;
-    }
-
-    const formData = new FormData();
-    formData.append('action', 'delete');
-    formData.append('deck_id', deckId);
-
-    try {
-        const response = await fetch('api/deck.php', {
-            method: 'POST',
-            body: formData
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            showNotification(data.message, 'success');
-
-            // Reload after a short delay
-            setTimeout(() => {
-                window.location.href = 'deck_builder.php';
-            }, 1000);
+        // Rule 103.3: Rune deck exact size
+        if (runeDeck.length !== RULES.RUNE_DECK_SIZE) {
+            warnings.push({
+                type: runeDeck.length === 0 ? 'warning' : 'error',
+                message: `Rune deck must be exactly ${RULES.RUNE_DECK_SIZE} cards (currently ${runeDeck.length})`
+            });
         } else {
-            showNotification(data.message, 'error');
+            warnings.push({
+                type: 'success',
+                message: `Rune deck complete: ${RULES.RUNE_DECK_SIZE} cards`
+            });
         }
-    } catch (error) {
-        console.error('Delete error:', error);
-        showNotification('Failed to delete deck', 'error');
-    }
-}
 
-// =============================================================================
-// MODAL
-// =============================================================================
+        // Rule 103.2.d: Signature cards
+        const signatureCount = mainDeck.filter(id => {
+            const card = window.cardDatabase[id];
+            return card && card.card_type === 'Signature';
+        }).length;
 
-function setupModal() {
-    const modal = document.getElementById('loadDeckModal');
-    const loadBtn = document.getElementById('loadDeckBtn');
-    const closeBtn = modal.querySelector('.close');
-
-    loadBtn.addEventListener('click', () => {
-        modal.classList.add('active');
-    });
-
-    closeBtn.addEventListener('click', () => {
-        modal.classList.remove('active');
-    });
-
-    window.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            modal.classList.remove('active');
+        if (signatureCount > RULES.MAX_SIGNATURE_CARDS) {
+            warnings.push({
+                type: 'error',
+                message: `Too many Signature cards (${signatureCount}/${RULES.MAX_SIGNATURE_CARDS})`
+            });
         }
-    });
-}
 
-// =============================================================================
-// NOTIFICATIONS
-// =============================================================================
-
-function showNotification(message, type) {
-    const existing = document.querySelector('.notification');
-    if (existing) {
-        existing.remove();
+        displayWarnings(warnings);
+        return warnings.filter(w => w.type === 'error').length === 0;
     }
 
-    const notification = document.createElement('div');
-    notification.className = 'notification notification-' + type;
-    notification.textContent = message;
-    document.body.appendChild(notification);
+    /**
+     * Display validation warnings
+     */
+    function displayWarnings(warnings) {
+        const container = document.getElementById('deckWarnings');
+        if (!container) return;
 
-    setTimeout(() => notification.classList.add('show'), 10);
-
-    setTimeout(() => {
-        notification.classList.remove('show');
-        setTimeout(() => notification.remove(), 300);
-    }, 3000);
-}
-
-// =============================================================================
-// FEATURED CARD SELECTION
-// =============================================================================
-
-function setupFeaturedCardModal() {
-    const modal = document.getElementById('featuredCardModal');
-    const confirmBtn = document.getElementById('confirmFeaturedCard');
-
-    confirmBtn.addEventListener('click', confirmFeaturedCardSelection);
-
-    // Close on ESC key
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && modal.classList.contains('active')) {
-            closeFeaturedCardModal();
-        }
-    });
-}
-
-function showFeaturedCardSelection() {
-    const modal = document.getElementById('featuredCardModal');
-    const grid = document.getElementById('featuredCardGrid');
-    const confirmBtn = document.getElementById('confirmFeaturedCard');
-
-    // Clear previous selections
-    grid.innerHTML = '';
-    selectedFeaturedCardId = currentFeaturedCardId; // Use existing featured card if set
-
-    // Get unique cards from deck
-    const uniqueCards = {};
-    currentDeck.forEach(deckCard => {
-        if (!uniqueCards[deckCard.id]) {
-            uniqueCards[deckCard.id] = cardDatabase[deckCard.id];
-        }
-    });
-
-    if (Object.keys(uniqueCards).length === 0) {
-        grid.innerHTML = '<p style="text-align: center; color: #999;">No cards in deck</p>';
-        return;
-    }
-
-    // Populate grid with deck cards
-    Object.values(uniqueCards).forEach(card => {
-        const cardDiv = document.createElement('div');
-        cardDiv.className = 'featured-card-option';
-        cardDiv.style.cssText = `
-            position: relative;
-            cursor: pointer;
-            border-radius: 8px;
-            overflow: hidden;
-            aspect-ratio: 2/3;
-            border: 3px solid transparent;
-            transition: all 0.2s;
-        `;
-
-        if (selectedFeaturedCardId == card.id) {
-            cardDiv.style.border = '3px solid #667eea';
-            cardDiv.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.3)';
+        if (warnings.length === 0) {
+            container.innerHTML = '';
+            return;
         }
 
-        cardDiv.innerHTML = `
-            <img src="${card.card_art_url || ''}"
-                 alt="${card.name}"
-                 style="width: 100%; height: 100%; object-fit: cover;"
-                 onerror="this.src='/path/to/placeholder.png'">
-            ${selectedFeaturedCardId == card.id ? '<div style="position: absolute; top: 5px; right: 5px; background: #667eea; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">✓ Selected</div>' : ''}
-        `;
-
-        cardDiv.addEventListener('click', () => selectFeaturedCard(card.id));
-        cardDiv.addEventListener('mouseenter', () => {
-            if (selectedFeaturedCardId != card.id) {
-                cardDiv.style.border = '3px solid #ccc';
-            }
-        });
-        cardDiv.addEventListener('mouseleave', () => {
-            if (selectedFeaturedCardId != card.id) {
-                cardDiv.style.border = '3px solid transparent';
-            }
+        let html = '';
+        warnings.forEach(warning => {
+            html += `<div class="warning-item ${warning.type}">${warning.message}</div>`;
         });
 
-        grid.appendChild(cardDiv);
-    });
-
-    // Show confirm button if card already selected
-    if (selectedFeaturedCardId) {
-        confirmBtn.style.display = 'inline-block';
+        container.innerHTML = html;
     }
 
-    modal.classList.add('active');
-}
+    /**
+     * Filter cards by search
+     */
+    function filterCards(tabName, searchTerm) {
+        renderCardGrid(tabName);
 
-function selectFeaturedCard(cardId) {
-    selectedFeaturedCardId = cardId;
+        if (!searchTerm) return;
 
-    // Update visual selection
-    const grid = document.getElementById('featuredCardGrid');
-    const cards = grid.querySelectorAll('.featured-card-option');
+        const gridId = tabName === 'main-deck' ? 'mainDeckCardGrid' :
+                       tabName === 'rune-deck' ? 'runeDeckCardGrid' :
+                       'battlefieldCardGrid';
 
-    cards.forEach(cardDiv => {
-        const isSelected = cardDiv.querySelector('img').alt === cardDatabase[cardId].name;
+        const grid = document.getElementById(gridId);
+        const cards = grid.querySelectorAll('.library-card');
 
-        if (isSelected) {
-            cardDiv.style.border = '3px solid #667eea';
-            cardDiv.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.3)';
+        searchTerm = searchTerm.toLowerCase();
 
-            // Add checkmark if not present
-            if (!cardDiv.querySelector('.featured-card-selected')) {
-                const checkmark = document.createElement('div');
-                checkmark.className = 'featured-card-selected';
-                checkmark.style.cssText = 'position: absolute; top: 5px; right: 5px; background: #667eea; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;';
-                checkmark.textContent = '✓ Selected';
-                cardDiv.appendChild(checkmark);
-            }
-        } else {
-            cardDiv.style.border = '3px solid transparent';
-            cardDiv.style.boxShadow = 'none';
+        cards.forEach(cardDiv => {
+            const cardId = parseInt(cardDiv.dataset.cardId);
+            const card = window.cardDatabase[cardId];
 
-            // Remove checkmark
-            const checkmark = cardDiv.querySelector('.featured-card-selected');
-            if (checkmark) checkmark.remove();
+            const matches = card.name.toLowerCase().includes(searchTerm) ||
+                          (card.card_code && card.card_code.toLowerCase().includes(searchTerm));
+
+            cardDiv.style.display = matches ? 'block' : 'none';
+        });
+    }
+
+    /**
+     * Save deck
+     */
+    async function saveDeck() {
+        if (!validateDeck()) {
+            alert('Please fix validation errors before saving');
+            return;
         }
-    });
 
-    // Show confirm button
-    document.getElementById('confirmFeaturedCard').style.display = 'inline-block';
-}
+        const deckName = document.getElementById('deckName').value.trim();
+        if (!deckName) {
+            alert('Please enter a deck name');
+            return;
+        }
 
-function confirmFeaturedCardSelection() {
-    if (!selectedFeaturedCardId) {
-        showNotification('Please select a card', 'error');
-        return;
+        const deckData = {
+            action: 'save_deck_v2',
+            deck_id: currentDeckId,
+            deck_name: deckName,
+            description: document.getElementById('deckDescription').value.trim(),
+            champion_legend_id: selectedChampionLegend?.id,
+            chosen_champion_id: chosenChampion?.id,
+            main_deck: mainDeck,
+            rune_deck: runeDeck,
+            battlefields: battlefields
+        };
+
+        try {
+            const response = await fetch('api/deck_v2.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(deckData)
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                alert('Deck saved successfully!');
+                if (result.deck_id && !currentDeckId) {
+                    window.location.href = `deck_builder_v2.php?deck_id=${result.deck_id}`;
+                }
+            } else {
+                alert('Error: ' + result.message);
+            }
+        } catch (error) {
+            console.error('Save error:', error);
+            alert('Failed to save deck');
+        }
     }
 
-    const deckId = document.getElementById('deckId').value;
-    closeFeaturedCardModal();
+    /**
+     * Clear deck
+     */
+    function clearDeck() {
+        if (!confirm('Clear all cards from this deck?')) return;
 
-    // Publish with featured card
-    publishDeck('publish', deckId, selectedFeaturedCardId);
-}
+        mainDeck = [];
+        runeDeck = [];
+        battlefields = [];
+        chosenChampion = null;
 
-function closeFeaturedCardModal() {
-    document.getElementById('featuredCardModal').classList.remove('active');
-}
+        updateDeckDisplay();
+        updateAllCounts();
+        validateDeck();
+        removeChosenChampion();
+        renderCardGrid('main-deck');
+        renderCardGrid('rune-deck');
+        renderCardGrid('battlefields');
+    }
 
-// =============================================================================
-// EXPOSE FUNCTIONS GLOBALLY
-// =============================================================================
+    /**
+     * Export deck
+     */
+    function exportDeck() {
+        let code = '# Riftbound Deck Export\n\n';
 
-window.addCardToDeck = addCardToDeck;
-window.removeCardFromDeck = removeCardFromDeck;
-window.removeAllCopies = removeAllCopies;
-window.deleteDeck = deleteDeck;
-window.closeFeaturedCardModal = closeFeaturedCardModal;
+        if (selectedChampionLegend) {
+            code += `Champion Legend: ${selectedChampionLegend.name}\n`;
+        }
+
+        if (chosenChampion) {
+            code += `Chosen Champion: ${chosenChampion.name}\n\n`;
+        }
+
+        code += 'Main Deck:\n';
+        const mainCounts = {};
+        mainDeck.forEach(id => {
+            const card = window.cardDatabase[id];
+            if (card) {
+                mainCounts[card.card_code] = (mainCounts[card.card_code] || 0) + 1;
+            }
+        });
+        Object.entries(mainCounts).forEach(([code, count]) => {
+            code += `${count}x ${code}\n`;
+        });
+
+        navigator.clipboard.writeText(code).then(() => {
+            alert('Deck code copied to clipboard!');
+        }).catch(() => {
+            prompt('Copy this deck code:', code);
+        });
+    }
+
+    // Export functions for global access
+    window.riftboundDeckBuilder = {
+        selectChampionLegend,
+        removeChosenChampion,
+        removeFromDeck
+    };
+
+})();

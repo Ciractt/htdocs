@@ -1,0 +1,591 @@
+/* Riftbound Rule-Enforced Deck Builder Styles */
+
+.deck-builder-wizard {
+    margin-top: 2rem;
+}
+
+/* Step 1: Champion Legend Selection */
+.builder-step {
+    background: white;
+    padding: 2rem;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+}
+
+.step-header h2 {
+    margin: 0 0 0.5rem 0;
+    color: #333;
+}
+
+.step-description {
+    color: #666;
+    margin: 0;
+}
+
+.legend-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+.legend-card {
+    position: relative;
+    cursor: pointer;
+    border: 3px solid transparent;
+    border-radius: 10px;
+    overflow: hidden;
+    transition: all 0.3s;
+    background: #f8f9fa;
+}
+
+.legend-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-color: #667eea;
+}
+
+.legend-card.selected {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+}
+
+.legend-card img {
+    width: 100%;
+    display: block;
+}
+
+.legend-info {
+    padding: 1rem;
+    background: white;
+}
+
+.legend-name {
+    font-weight: 600;
+    font-size: 1rem;
+    color: #333;
+    margin-bottom: 0.25rem;
+}
+
+.legend-domain {
+    font-size: 0.85rem;
+    color: #667eea;
+    font-weight: 500;
+}
+
+.selected-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: #667eea;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 5px;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+/* Main Builder Interface */
+.builder-main {
+    margin-top: 2rem;
+}
+
+.deck-builder-container {
+    display: grid;
+    grid-template-columns: 1fr 400px;
+    gap: 2rem;
+}
+
+/* Deck Tabs */
+.deck-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 2px solid #f0f0f0;
+}
+
+.deck-tab {
+    flex: 1;
+    padding: 1rem;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    cursor: pointer;
+    font-weight: 600;
+    color: #666;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.deck-tab:hover {
+    color: #667eea;
+}
+
+.deck-tab.active {
+    color: #667eea;
+    border-bottom-color: #667eea;
+}
+
+.tab-count {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #999;
+}
+
+.deck-tab.active .tab-count {
+    color: #667eea;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* Chosen Champion Section */
+.chosen-champion-section {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    border: 2px solid #e0e0e0;
+}
+
+.chosen-champion-section h3 {
+    margin: 0 0 1rem 0;
+    font-size: 1.1rem;
+    color: #333;
+}
+
+.champion-slot {
+    min-height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    border: 2px dashed #ddd;
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.champion-slot.filled {
+    border-style: solid;
+    border-color: #667eea;
+    background: #f8f9ff;
+}
+
+.champion-slot .empty-slot {
+    color: #999;
+    text-align: center;
+    margin: 0;
+}
+
+.champion-display {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+}
+
+.champion-display img {
+    width: 80px;
+    height: auto;
+    border-radius: 6px;
+}
+
+.champion-display-info {
+    flex: 1;
+}
+
+.champion-display-name {
+    font-weight: 600;
+    font-size: 1rem;
+    margin-bottom: 0.25rem;
+}
+
+.champion-display-tag {
+    font-size: 0.85rem;
+    color: #667eea;
+}
+
+.remove-champion-btn {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+
+/* Card Library */
+.card-library {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Filters */
+.filters {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.search-input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 5px;
+    font-size: 0.95rem;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.filter-select {
+    padding: 0.75rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 5px;
+    font-size: 0.95rem;
+    background: white;
+    cursor: pointer;
+}
+
+.filter-select:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+/* Card Grid */
+.card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 1rem;
+    max-height: 70vh;
+    overflow-y: auto;
+    padding: 0.5rem;
+}
+
+.library-card {
+    position: relative;
+    cursor: pointer;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: transform 0.2s;
+    border: 2px solid transparent;
+}
+
+.library-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.library-card.invalid {
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+.library-card.max-copies {
+    opacity: 0.5;
+}
+
+.library-card.valid-chosen-champion {
+    border-color: #28a745;
+    box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.2);
+}
+
+.library-card.valid-chosen-champion:hover {
+    border-color: #28a745;
+    box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.3), 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.library-card img {
+    width: 100%;
+    display: block;
+}
+
+.card-count-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 0.85rem;
+}
+
+.chosen-champion-badge {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(40, 167, 69, 0.95);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.collection-badge-lib {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    background: rgba(46, 204, 113, 0.9);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 0.8rem;
+}
+
+/* Deck Panel */
+.deck-panel {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    position: sticky;
+    top: 20px;
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+}
+
+.deck-header {
+    margin-bottom: 1.5rem;
+}
+
+.deck-name-input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 2px solid #667eea;
+    border-radius: 5px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.deck-description {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    min-height: 60px;
+    resize: vertical;
+    font-size: 0.9rem;
+}
+
+/* Selected Legend Display */
+.selected-legend-display {
+    background: #f8f9ff;
+    border: 2px solid #667eea;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.legend-display-header {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 0.5rem;
+}
+
+.legend-display-content {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.legend-display-content img {
+    width: 60px;
+    border-radius: 6px;
+}
+
+.legend-display-info {
+    flex: 1;
+}
+
+.legend-display-name {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 0.25rem;
+}
+
+.legend-display-domain {
+    font-size: 0.85rem;
+    color: #667eea;
+}
+
+/* Deck Warnings */
+.deck-warnings {
+    margin-bottom: 1rem;
+}
+
+.warning-item {
+    padding: 0.75rem;
+    border-radius: 5px;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.warning-item.error {
+    background: #fee;
+    border-left: 4px solid #dc3545;
+    color: #721c24;
+}
+
+.warning-item.warning {
+    background: #fff3cd;
+    border-left: 4px solid #ffc107;
+    color: #856404;
+}
+
+.warning-item.success {
+    background: #d4edda;
+    border-left: 4px solid #28a745;
+    color: #155724;
+}
+
+/* Deck Actions */
+.deck-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+/* Deck List */
+.deck-list {
+    margin-top: 1rem;
+}
+
+.deck-section {
+    margin-bottom: 1.5rem;
+}
+
+.deck-section-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #666;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #f0f0f0;
+    display: flex;
+    justify-content: space-between;
+}
+
+.deck-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem;
+    border-bottom: 1px solid #f0f0f0;
+    transition: background 0.2s;
+}
+
+.deck-card:hover {
+    background: #f8f9fa;
+}
+
+.deck-card-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+}
+
+.deck-card-cost {
+    background: #3498db;
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 3px;
+    font-weight: bold;
+    font-size: 0.9rem;
+    min-width: 30px;
+    text-align: center;
+}
+
+.deck-card-name {
+    font-size: 0.9rem;
+    flex: 1;
+}
+
+.deck-card-quantity {
+    font-weight: bold;
+    color: #666;
+    margin-right: 0.5rem;
+}
+
+.deck-card-controls {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.card-control-btn {
+    background: none;
+    border: 1px solid #ddd;
+    padding: 0.25rem 0.5rem;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+}
+
+.card-control-btn:hover {
+    background: #f0f0f0;
+}
+
+.card-control-btn.remove {
+    color: #dc3545;
+}
+
+.card-control-btn.remove:hover {
+    background: #dc3545;
+    color: white;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .deck-builder-container {
+        grid-template-columns: 1fr;
+    }
+
+    .deck-panel {
+        position: static;
+        max-height: none;
+    }
+
+    .legend-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .filters {
+        grid-template-columns: 1fr;
+    }
+
+    .deck-tabs {
+        flex-direction: column;
+    }
+
+    .legend-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    }
+}
