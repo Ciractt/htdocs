@@ -15,27 +15,49 @@ $user = getCurrentUser();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo SITE_NAME; ?> - Home</title>
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/style-fixes.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Single CSS File -->
+    <link rel="stylesheet" href="css/theme.css">
 </head>
 <body>
     <?php include 'includes/header.php'; ?>
 
     <main class="container">
+        <!-- Hero Section -->
         <section class="hero">
-            <h1>Welcome to <?php echo SITE_NAME; ?></h1>
-            <p>Build your collection, craft powerful decks, and master the game.</p>
-            <?php if (!$user): ?>
-                <div class="hero-actions">
-                    <a href="login.php" class="btn btn-primary">Login</a>
-                    <a href="register.php" class="btn btn-secondary">Register</a>
-                </div>
-            <?php endif; ?>
+            <div class="hero-content">
+                <h1>Welcome to <?php echo SITE_NAME; ?></h1>
+                <p>Build your collection, craft powerful decks, and master the game.</p>
+                <?php if (!$user): ?>
+                    <div class="hero-actions">
+                        <a href="register.php" class="btn btn-primary btn-large">
+                            Get Started Free
+                        </a>
+                        <a href="cards2.php" class="btn btn-secondary btn-large">
+                            Browse Cards
+                        </a>
+                    </div>
+                <?php else: ?>
+                    <div class="hero-actions">
+                        <a href="deck_builder.php" class="btn btn-primary btn-large">
+                            Build a Deck
+                        </a>
+                        <a href="collection.php" class="btn btn-secondary btn-large">
+                            View Collection
+                        </a>
+                    </div>
+                <?php endif; ?>
+            </div>
         </section>
 
-        <section class="featured-cards">
-            <h2>Featured Cards</h2>
+
+        <!-- Featured Cards Section -->
+        <?php if (!empty($featured_cards)): ?>
+        <section class="featured-section">
+            <div class="section-header">
+                <h2 class="section-title">Featured Cards</h2>
+                <a href="cards2.php" class="btn btn-secondary btn-small">View All →</a>
+            </div>
             <div class="card-gallery">
                 <?php foreach ($featured_cards as $card): ?>
                     <div class="gallery-card-item"
@@ -60,236 +82,106 @@ $user = getCurrentUser();
                 <?php endforeach; ?>
             </div>
         </section>
+        <?php endif; ?>
 
-        <section class="features">
-            <h2>Community Decks</h2>
-            <?php
-            $stmt = $pdo->query("
-                SELECT d.*, u.username, c.card_art_url as featured_card_image,
-                       (SELECT SUM(quantity) FROM deck_cards WHERE deck_id = d.id) as total_cards
-                FROM decks d
-                JOIN users u ON d.user_id = u.id
-                LEFT JOIN cards c ON d.featured_card_id = c.id
-                WHERE d.is_published = TRUE
-                ORDER BY d.published_at DESC
-                LIMIT 3
-            ");
-            $community_decks = $stmt->fetchAll();
-            ?>
+        <!-- Latest News Section -->
+        <section class="featured-section">
+            <div class="section-header">
+                <h2 class="section-title">Latest News</h2>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <span class="feature-icon">📢</span>
+                    <h3>New Set Released!</h3>
+                    <p>The latest expansion is now available with 150+ new cards to collect and powerful new mechanics to master.</p>
+                    <a href="#" class="btn btn-secondary btn-small">Read More</a>
+                </div>
 
-            <?php if (!empty($community_decks)): ?>
-                <div class="feature-grid">
-                    <?php foreach ($community_decks as $deck): ?>
-                        <div class="feature-item"
-                             onclick="window.location.href='view_deck.php?id=<?php echo $deck['id']; ?>'"
-                             style="cursor: pointer; transition: transform 0.2s;">
-                            <?php if ($deck['featured_card_image']): ?>
-                                <div style="display: flex; justify-content: center; margin-bottom: 1rem; padding: 1rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px;">
-                                    <img src="<?php echo htmlspecialchars($deck['featured_card_image']); ?>"
-                                         alt="Featured card"
-                                         style="width: 208px; height: 312px; object-fit: contain; border-radius: 8px;">
-                                </div>
-                            <?php endif; ?>
-                            <h3><?php echo htmlspecialchars($deck['deck_name']); ?></h3>
-                            <p style="color: #666; margin: 0.5rem 0;">by <?php echo htmlspecialchars($deck['username']); ?></p>
-                            <?php if ($deck['description']): ?>
-                                <p style="color: #777; font-size: 0.9rem; line-height: 1.5; margin: 0.75rem 0;">
-                                    <?php
-                                    $desc = htmlspecialchars($deck['description']);
-                                    echo strlen($desc) > 100 ? substr($desc, 0, 100) . '...' : $desc;
-                                    ?>
-                                </p>
-                            <?php endif; ?>
-                            <div style="display: flex; justify-content: center; gap: 1rem; margin: 1rem 0; font-size: 0.85rem; color: #666;">
-                                <span>📊 <?php echo $deck['total_cards']; ?> cards</span>
-                                <span>❤️ <?php echo $deck['like_count']; ?> likes</span>
-                                <span>📋 <?php echo $deck['copy_count']; ?> copies</span>
-                            </div>
-                            <a href="view_deck.php?id=<?php echo $deck['id']; ?>"
-                               class="btn btn-small"
-                               onclick="event.stopPropagation();"
-                               style="margin-top: 0.5rem;">View Deck</a>
-                        </div>
-                    <?php endforeach; ?>
+                <div class="feature-card">
+                    <span class="feature-icon">🏆</span>
+                    <h3>Tournament Season 2</h3>
+                    <p>Join our competitive season with amazing prizes. Registration opens next week!</p>
+                    <a href="#" class="btn btn-secondary btn-small">Learn More</a>
                 </div>
-                <div style="text-align: center; margin-top: 2rem;">
-                    <a href="community_decks.php" class="btn btn-primary">View All Community Decks</a>
-                </div>
-            <?php else: ?>
-                <div style="text-align: center; padding: 2rem; color: #999;">
-                    <p>No published decks yet. Be the first to share your deck!</p>
-                    <?php if (isLoggedIn()): ?>
-                        <a href="deck_builder.php" class="btn btn-primary" style="margin-top: 1rem;">Create a Deck</a>
-                    <?php endif; ?>
-                </div>
-            <?php endif; ?>
-        </section>
 
-        <section class="features">
-            <h2>Features</h2>
-            <div class="feature-grid">
-                <div class="feature-item">
-                    <h3>📚 Collection Manager</h3>
-                    <p>Track and manage your card collection with ease</p>
-                    <?php if ($user): ?>
-                        <a href="collection.php" class="btn btn-small">View Collection</a>
-                    <?php endif; ?>
-                </div>
-                <div class="feature-item">
-                    <h3>🎴 Deck Builder</h3>
-                    <p>Create and optimize powerful decks</p>
-                    <?php if ($user): ?>
-                        <a href="deck_builder.php" class="btn btn-small">Build Deck</a>
-                    <?php endif; ?>
-                </div>
-                <div class="feature-item">
-                    <h3>🔍 Card Database</h3>
-                    <p>Browse and search all available cards</p>
-                    <a href="cards.php" class="btn btn-small">Browse Cards</a>
+                <div class="feature-card">
+                    <span class="feature-icon">⚡</span>
+                    <h3>Balance Update</h3>
+                    <p>Check out the latest balance changes and meta shifts affecting the competitive scene.</p>
+                    <a href="#" class="btn btn-secondary btn-small">View Changes</a>
                 </div>
             </div>
         </section>
+
+        <!-- Community Decks Preview - 6 Decks (3 per row) -->
+        <?php
+        $stmt = $pdo->query("
+            SELECT d.*, u.username, c.card_art_url as featured_card_image,
+                   (SELECT SUM(quantity) FROM deck_cards WHERE deck_id = d.id) as total_cards
+            FROM decks d
+            JOIN users u ON d.user_id = u.id
+            LEFT JOIN cards c ON d.featured_card_id = c.id
+            WHERE d.is_published = TRUE
+            ORDER BY d.published_at DESC
+            LIMIT 6
+        ");
+        $community_decks = $stmt->fetchAll();
+        ?>
+
+        <?php if (!empty($community_decks)): ?>
+        <section class="featured-section">
+            <div class="section-header">
+                <h2 class="section-title">Community Decks</h2>
+                <a href="community_decks.php" class="btn btn-secondary btn-small">View All →</a>
+            </div>
+            <div class="community-decks-grid">
+                <?php foreach ($community_decks as $deck): ?>
+                    <div class="feature-card deck-card" onclick="window.location.href='view_deck.php?id=<?php echo $deck['id']; ?>'">
+                        <?php if ($deck['featured_card_image']): ?>
+                            <div style="margin: -1rem -1rem 1rem -1rem; border-radius: var(--radius-lg) var(--radius-lg) 0 0; overflow: hidden; background: linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%); padding: 1rem;">
+                                <img src="<?php echo htmlspecialchars($deck['featured_card_image']); ?>"
+                                     alt="Featured card"
+                                     style="width: 100%; border-radius: var(--radius-md);">
+                            </div>
+                        <?php endif; ?>
+
+                        <h3><?php echo htmlspecialchars($deck['deck_name']); ?></h3>
+
+                        <p class="deck-meta" style="color: var(--text-muted); margin-bottom: 0.5rem; font-size: 0.85rem;">
+                            by <strong><?php echo htmlspecialchars($deck['username']); ?></strong>
+                        </p>
+
+                        <?php if ($deck['description']): ?>
+                            <p style="font-size: 0.85rem; line-height: 1.5; color: var(--text-secondary);">
+                                <?php
+                                $desc = htmlspecialchars($deck['description']);
+                                echo strlen($desc) > 80 ? substr($desc, 0, 80) . '...' : $desc;
+                                ?>
+                            </p>
+                        <?php endif; ?>
+
+                        <div style="display: flex; justify-content: space-between; margin: 1rem 0 0.5rem; padding-top: 0.75rem; border-top: 1px solid var(--border-primary); font-size: 0.8rem; color: var(--text-muted);">
+                            <span>📊 <?php echo $deck['total_cards']; ?> cards</span>
+                            <span>❤️ <?php echo $deck['like_count']; ?> likes</span>
+                        </div>
+
+                        <a href="view_deck.php?id=<?php echo $deck['id']; ?>" class="btn btn-secondary btn-small" onclick="event.stopPropagation();">
+                            View Deck
+                        </a>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </section>
+        <?php endif; ?>
     </main>
 
-    <?php include 'includes/footer.php'; ?>
-
     <!-- Card Detail Modal -->
-    <div id="cardDetailModal" class="modal">
-        <div class="modal-content card-detail-modal">
-            <span class="close">&times;</span>
-            <div class="card-detail-layout">
-                <div class="card-detail-image">
-                    <img id="modalCardImage" src="" alt="">
-                </div>
-                <div class="card-detail-info">
-                    <h2 id="modalCardName"></h2>
+    <?php include 'includes/card_detail_modal.php'; ?>
 
-                    <!-- Badges (Type, Rarity, Region) -->
-                    <div class="card-badges" id="modalBadges"></div>
-
-                    <!-- Champion/Region Pills -->
-                    <div class="card-pills" id="modalPills"></div>
-
-                    <!-- Stats Grid -->
-                    <div class="detail-stats-grid">
-                        <div class="detail-stat-item">
-                            <span class="detail-stat-label">Energy</span>
-                            <div class="detail-stat-value" id="modalEnergy">0</div>
-                        </div>
-                        <div class="detail-stat-item">
-                            <span class="detail-stat-label">Power</span>
-                            <div class="detail-stat-value" id="modalPower">0</div>
-                        </div>
-                        <div class="detail-stat-item">
-                            <span class="detail-stat-label">Might</span>
-                            <div class="detail-stat-value" id="modalMight">0</div>
-                        </div>
-                    </div>
-
-                    <!-- Description -->
-                    <div class="card-section">
-                        <h3 class="card-section-title">Description</h3>
-                        <div class="detail-description">
-                            <p id="modalDescription"></p>
-                        </div>
-                    </div>
-
-                    <!-- Flavor Text -->
-                    <div class="card-section" id="modalFlavorSection" style="display: none;">
-                        <h3 class="card-section-title">Flavor Text</h3>
-                        <p class="card-flavor-text" id="modalFlavorText"></p>
-                    </div>
-
-                    <!-- Card Information -->
-                    <div class="card-info-box">
-                        <h3>Card Information</h3>
-                        <div class="card-info-list">
-                            <div class="card-info-item">
-                                <span class="card-info-label">Card Number:</span>
-                                <code id="modalCardCode"></code>
-                            </div>
-                            <div class="card-info-item" id="modalQuantityRow" style="display: none;">
-                                <span class="card-info-label">You own:</span>
-                                <span class="card-info-value" id="modalQuantity"></span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <?php if (isLoggedIn()): ?>
-                    <!-- Collection Actions -->
-                    <div class="collection-actions" id="modalCollectionActions">
-                        <button class="btn btn-primary btn-full" onclick="addToCollectionFromModal()">Add to Collection</button>
-                    </div>
-                    <?php endif; ?>
-                </div>
-            </div>
-        </div>
-    </div>
+    <?php include 'includes/footer.php'; ?>
 
     <script src="js/main.js"></script>
     <script src="js/card_formatter.js"></script>
     <script src="js/cards.js"></script>
-    <script>
-        // Define globally BEFORE other scripts
-        window.currentModalCardId = null;
-
-        // Add card to collection from modal
-        async function addToCollectionFromModal() {
-            console.log('Add to collection clicked, card ID:', window.currentModalCardId);
-
-            if (!window.currentModalCardId) {
-                alert('No card selected');
-                return;
-            }
-
-            const formData = new FormData();
-            formData.append('action', 'add');
-            formData.append('card_id', window.currentModalCardId);
-
-            try {
-                const response = await fetch('api/collection.php', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    showNotification(data.message, 'success');
-
-                    // Update quantity display if it exists
-                    const quantityRow = document.getElementById('modalQuantityRow');
-                    const quantitySpan = document.getElementById('modalQuantity');
-                    if (quantityRow && quantitySpan) {
-                        quantityRow.style.display = 'flex';
-                        const currentQty = parseInt(quantitySpan.textContent.replace('x', '')) || 0;
-                        quantitySpan.textContent = 'x' + (currentQty + 1);
-                    }
-                } else {
-                    showNotification(data.message, 'error');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                showNotification('An error occurred', 'error');
-            }
-        }
-
-        // Show notification helper
-        function showNotification(message, type) {
-            const existing = document.querySelector('.notification');
-            if (existing) existing.remove();
-
-            const notification = document.createElement('div');
-            notification.className = 'notification notification-' + type;
-            notification.textContent = message;
-            document.body.appendChild(notification);
-
-            setTimeout(() => notification.classList.add('show'), 10);
-            setTimeout(() => {
-                notification.classList.remove('show');
-                setTimeout(() => notification.remove(), 300);
-            }, 3000);
-        }
-    </script>
 </body>
 </html>

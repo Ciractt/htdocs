@@ -55,7 +55,7 @@ $sets = $pdo->query("SELECT DISTINCT set_name FROM cards WHERE set_name IS NOT N
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Collection - <?php echo SITE_NAME; ?></title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/theme.css">
     <style>
         .collection-header {
             background: white;

@@ -87,7 +87,7 @@ $user_decks = $stmt->fetchAll();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Deck Builder - <?php echo SITE_NAME; ?></title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/theme.css">
     <link rel="stylesheet" href="css/deck_builder_v2.css">
 </head>
 <body>
