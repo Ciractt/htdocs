@@ -52,7 +52,7 @@ function getCurrentUser() {
     }
 
     $pdo = getDB();
-    $stmt = $pdo->prepare("SELECT id, username, email, riot_id FROM users WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT id, username, email, riot_id, is_admin, is_moderator, last_login FROM users WHERE id = ?");
     $stmt->execute([$_SESSION['user_id']]);
     return $stmt->fetch();
 }
