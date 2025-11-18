@@ -20,6 +20,270 @@ $user = getCurrentUser();
     <link rel="stylesheet" href="css/theme.css">
     <style>
         /* ============================================
+           HERO CARD SHOWCASE
+           ============================================ */
+
+        .hero {
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Holographic Foil Effect for Hero Title */
+        .hero-title-foil {
+            position: relative;
+            display: inline-block;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-title-foil::before {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                125deg,
+                rgba(255, 255, 255, 0) 0%,
+                rgba(255, 255, 255, 0) 35%,
+                rgba(255, 120, 200, 0.5) 45%,
+                rgba(255, 255, 255, 0.6) 50%,
+                rgba(120, 200, 255, 0.5) 55%,
+                rgba(255, 255, 255, 0) 65%,
+                rgba(255, 255, 255, 0) 100%
+            );
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: foil-shimmer 6s ease-in-out infinite;
+            pointer-events: none;
+        }
+
+        @keyframes foil-shimmer {
+            0% {
+                background-position: 200% 50%;
+            }
+            100% {
+                background-position: -200% 50%;
+            }
+        }
+
+        .hero-cards-showcase {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .hero-card {
+            position: absolute;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg);
+            opacity: 0.2;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .hero-card img {
+            width: 100%;
+            height: auto;
+            border-radius: var(--radius-md);
+            display: block;
+        }
+
+        /* Position cards around the hero - Left side (7 cards) */
+        .hero-card:nth-child(1) {
+            width: 90px;
+            top: 3%;
+            left: 2%;
+            transform: rotate(-12deg);
+            animation-delay: 0s;
+        }
+
+        .hero-card:nth-child(2) {
+            width: 110px;
+            top: 22%;
+            left: 7%;
+            transform: rotate(8deg);
+            animation-delay: -1s;
+        }
+
+        .hero-card:nth-child(3) {
+            width: 85px;
+            top: 45%;
+            left: 1%;
+            transform: rotate(-6deg);
+            animation-delay: -2s;
+        }
+
+        .hero-card:nth-child(4) {
+            width: 100px;
+            top: 68%;
+            left: 9%;
+            transform: rotate(10deg);
+            animation-delay: -3s;
+        }
+
+        .hero-card:nth-child(5) {
+            width: 75px;
+            top: 12%;
+            left: 14%;
+            transform: rotate(-3deg);
+            animation-delay: -4s;
+        }
+
+        .hero-card:nth-child(6) {
+            width: 95px;
+            top: 38%;
+            left: 12%;
+            transform: rotate(5deg);
+            animation-delay: -5s;
+        }
+
+        .hero-card:nth-child(7) {
+            width: 80px;
+            bottom: 5%;
+            left: 3%;
+            transform: rotate(-8deg);
+            animation-delay: -6s;
+        }
+
+        /* Position cards around the hero - Right side (7 cards) */
+        .hero-card:nth-child(8) {
+            width: 100px;
+            top: 5%;
+            right: 4%;
+            transform: rotate(10deg);
+            animation-delay: -0.5s;
+        }
+
+        .hero-card:nth-child(9) {
+            width: 85px;
+            top: 28%;
+            right: 1%;
+            transform: rotate(-8deg);
+            animation-delay: -1.5s;
+        }
+
+        .hero-card:nth-child(10) {
+            width: 110px;
+            top: 50%;
+            right: 8%;
+            transform: rotate(5deg);
+            animation-delay: -2.5s;
+        }
+
+        .hero-card:nth-child(11) {
+            width: 80px;
+            top: 72%;
+            right: 2%;
+            transform: rotate(-12deg);
+            animation-delay: -3.5s;
+        }
+
+        .hero-card:nth-child(12) {
+            width: 90px;
+            top: 10%;
+            right: 12%;
+            transform: rotate(6deg);
+            animation-delay: -4.5s;
+        }
+
+        .hero-card:nth-child(13) {
+            width: 75px;
+            top: 40%;
+            right: 14%;
+            transform: rotate(-4deg);
+            animation-delay: -5.5s;
+        }
+
+        .hero-card:nth-child(14) {
+            width: 95px;
+            bottom: 8%;
+            right: 6%;
+            transform: rotate(7deg);
+            animation-delay: -6.5s;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0) rotate(var(--rotation, 0deg));
+            }
+            50% {
+                transform: translateY(-12px) rotate(var(--rotation, 0deg));
+            }
+        }
+
+        /* Preserve individual rotations during animation */
+        .hero-card:nth-child(1) { --rotation: -12deg; }
+        .hero-card:nth-child(2) { --rotation: 8deg; }
+        .hero-card:nth-child(3) { --rotation: -6deg; }
+        .hero-card:nth-child(4) { --rotation: 10deg; }
+        .hero-card:nth-child(5) { --rotation: -3deg; }
+        .hero-card:nth-child(6) { --rotation: 5deg; }
+        .hero-card:nth-child(7) { --rotation: -8deg; }
+        .hero-card:nth-child(8) { --rotation: 10deg; }
+        .hero-card:nth-child(9) { --rotation: -8deg; }
+        .hero-card:nth-child(10) { --rotation: 5deg; }
+        .hero-card:nth-child(11) { --rotation: -12deg; }
+        .hero-card:nth-child(12) { --rotation: 6deg; }
+        .hero-card:nth-child(13) { --rotation: -4deg; }
+        .hero-card:nth-child(14) { --rotation: 7deg; }
+
+        /* Ensure hero content stays above cards */
+        .hero-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Responsive - progressively hide cards */
+        @media (max-width: 1400px) {
+            .hero-card:nth-child(5),
+            .hero-card:nth-child(6),
+            .hero-card:nth-child(12),
+            .hero-card:nth-child(13) {
+                display: none;
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .hero-card {
+                opacity: 0.15;
+            }
+
+            .hero-card:nth-child(4),
+            .hero-card:nth-child(7),
+            .hero-card:nth-child(11),
+            .hero-card:nth-child(14) {
+                display: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .hero-card {
+                opacity: 0.12;
+            }
+
+            .hero-card:nth-child(3),
+            .hero-card:nth-child(10) {
+                display: none;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .hero-card:nth-child(2),
+            .hero-card:nth-child(9) {
+                display: none;
+            }
+        }
+
+        /* ============================================
            UNIFIED CARD GRID SYSTEM
            ============================================ */
 
@@ -252,8 +516,28 @@ $user = getCurrentUser();
     <main class="container">
         <!-- Hero Section -->
         <section class="hero">
+            <!-- Floating Cards Background -->
+            <div class="hero-cards-showcase">
+                <?php
+                // Get random cards for hero background (excluding Battlefield cards)
+                $hero_stmt = $pdo->query("SELECT card_art_url, name FROM cards WHERE card_art_url IS NOT NULL AND card_type != 'Battlefield' ORDER BY RAND() LIMIT 14");
+                $hero_cards = $hero_stmt->fetchAll();
+                foreach ($hero_cards as $hero_card):
+                    if ($hero_card['card_art_url']):
+                ?>
+                    <div class="hero-card">
+                        <img src="<?php echo htmlspecialchars($hero_card['card_art_url']); ?>"
+                             alt="<?php echo htmlspecialchars($hero_card['name']); ?>"
+                             loading="lazy">
+                    </div>
+                <?php
+                    endif;
+                endforeach;
+                ?>
+            </div>
+
             <div class="hero-content">
-                <h1>Welcome to <?php echo SITE_NAME; ?></h1>
+                <h1><span class="hero-title-foil" data-text="Welcome to <?php echo SITE_NAME; ?>">Welcome to <?php echo SITE_NAME; ?></span></h1>
                 <p>Build your collection, craft powerful decks, and master the game.</p>
                 <?php if (!$user): ?>
                     <div class="hero-actions">
