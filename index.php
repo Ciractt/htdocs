@@ -20,9 +20,87 @@ $user = getCurrentUser();
     <link rel="stylesheet" href="css/theme.css">
     <style>
         /* ============================================
+           ANNOUNCEMENT/ALERT BANNER
+           ============================================ */
+        
+        .announcement-banner {
+            padding: var(--spacing-md) var(--spacing-lg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--spacing-md);
+            position: relative;
+            border-radius: var(--radius-lg);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .announcement-banner.success {
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            color: var(--success);
+        }
+
+        .announcement-banner.warning {
+            background: rgba(245, 158, 11, 0.15);
+            border: 1px solid rgba(245, 158, 11, 0.4);
+            color: var(--warning);
+        }
+
+        .announcement-banner.danger {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            color: var(--error);
+        }
+
+        .announcement-icon {
+            font-size: 1.25rem;
+            flex-shrink: 0;
+        }
+
+        .announcement-content {
+            flex: 1;
+            text-align: center;
+        }
+
+        .announcement-title {
+            font-weight: 700;
+            font-size: 0.95rem;
+            margin-bottom: 2px;
+        }
+
+        .announcement-message {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .announcement-dismiss {
+            background: none;
+            border: none;
+            color: inherit;
+            cursor: pointer;
+            padding: var(--spacing-sm);
+            border-radius: var(--radius-md);
+            opacity: 0.7;
+            transition: all var(--transition-fast);
+            font-size: 1.25rem;
+            line-height: 1;
+            flex-shrink: 0;
+        }
+
+        .announcement-dismiss:hover {
+            opacity: 1;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Hide dismissed announcements */
+        .announcement-banner.dismissed {
+            display: none;
+        }
+
+        /* ============================================
            HERO CARD SHOWCASE
            ============================================ */
-
+        
         .hero {
             position: relative;
             overflow: hidden;
@@ -256,7 +334,7 @@ $user = getCurrentUser();
             .hero-card {
                 opacity: 0.15;
             }
-
+            
             .hero-card:nth-child(4),
             .hero-card:nth-child(7),
             .hero-card:nth-child(11),
@@ -269,7 +347,7 @@ $user = getCurrentUser();
             .hero-card {
                 opacity: 0.12;
             }
-
+            
             .hero-card:nth-child(3),
             .hero-card:nth-child(10) {
                 display: none;
@@ -286,7 +364,7 @@ $user = getCurrentUser();
         /* ============================================
            UNIFIED CARD GRID SYSTEM
            ============================================ */
-
+        
         /* Unified grid for all homepage sections */
         .unified-grid {
             display: grid;
@@ -460,7 +538,7 @@ $user = getCurrentUser();
             .unified-grid {
                 grid-template-columns: repeat(4, 1fr);
             }
-
+            
             .unified-grid.grid-4 {
                 grid-template-columns: repeat(4, 1fr);
             }
@@ -470,7 +548,7 @@ $user = getCurrentUser();
             .unified-grid {
                 grid-template-columns: repeat(3, 1fr);
             }
-
+            
             .unified-grid.grid-4 {
                 grid-template-columns: repeat(2, 1fr);
             }
@@ -480,7 +558,7 @@ $user = getCurrentUser();
             .unified-grid {
                 grid-template-columns: repeat(2, 1fr);
             }
-
+            
             .unified-grid.grid-4 {
                 grid-template-columns: repeat(2, 1fr);
             }
@@ -491,7 +569,7 @@ $user = getCurrentUser();
                 grid-template-columns: repeat(2, 1fr);
                 gap: var(--spacing-md);
             }
-
+            
             .unified-grid.grid-4 {
                 grid-template-columns: 1fr;
             }
@@ -514,25 +592,66 @@ $user = getCurrentUser();
     <?php include 'includes/header.php'; ?>
 
     <main class="container">
+        <!-- Announcements/Alerts -->
+        <?php
+        $announcement_stmt = $pdo->query("
+            SELECT * FROM announcements 
+            WHERE is_active = TRUE 
+            AND (start_date IS NULL OR start_date <= NOW())
+            AND (end_date IS NULL OR end_date >= NOW())
+            ORDER BY 
+                CASE alert_type 
+                    WHEN 'danger' THEN 1 
+                    WHEN 'warning' THEN 2 
+                    WHEN 'success' THEN 3 
+                END,
+                created_at DESC
+            LIMIT 3
+        ");
+        $announcements = $announcement_stmt->fetchAll();
+        
+        foreach ($announcements as $announcement):
+            $icon = match($announcement['alert_type']) {
+                'success' => '✓',
+                'warning' => '⚠',
+                'danger' => '⚠',
+                default => 'ℹ'
+            };
+        ?>
+            <div class="announcement-banner <?php echo htmlspecialchars($announcement['alert_type']); ?>" 
+                 data-announcement-id="<?php echo $announcement['id']; ?>">
+                <span class="announcement-icon"><?php echo $icon; ?></span>
+                <div class="announcement-content">
+                    <div class="announcement-title"><?php echo htmlspecialchars($announcement['title']); ?></div>
+                    <div class="announcement-message"><?php echo htmlspecialchars($announcement['message']); ?></div>
+                </div>
+                <?php if ($announcement['is_dismissible']): ?>
+                    <button class="announcement-dismiss" onclick="dismissAnnouncement(<?php echo $announcement['id']; ?>)" aria-label="Dismiss">
+                        ×
+                    </button>
+                <?php endif; ?>
+            </div>
+        <?php endforeach; ?>
+
         <!-- Hero Section -->
         <section class="hero">
             <!-- Floating Cards Background -->
             <div class="hero-cards-showcase">
-                <?php
+                <?php 
                 // Get random cards for hero background (excluding Battlefield cards)
                 $hero_stmt = $pdo->query("SELECT card_art_url, name FROM cards WHERE card_art_url IS NOT NULL AND card_type != 'Battlefield' ORDER BY RAND() LIMIT 14");
                 $hero_cards = $hero_stmt->fetchAll();
-                foreach ($hero_cards as $hero_card):
+                foreach ($hero_cards as $hero_card): 
                     if ($hero_card['card_art_url']):
                 ?>
                     <div class="hero-card">
-                        <img src="<?php echo htmlspecialchars($hero_card['card_art_url']); ?>"
+                        <img src="<?php echo htmlspecialchars($hero_card['card_art_url']); ?>" 
                              alt="<?php echo htmlspecialchars($hero_card['name']); ?>"
                              loading="lazy">
                     </div>
-                <?php
+                <?php 
                     endif;
-                endforeach;
+                endforeach; 
                 ?>
             </div>
 
@@ -764,5 +883,32 @@ $user = getCurrentUser();
     <script src="js/main.js"></script>
     <script src="js/card_formatter.js"></script>
     <script src="js/cards.js"></script>
+    <script>
+        // Announcement dismiss functionality
+        function dismissAnnouncement(id) {
+            const banner = document.querySelector(`[data-announcement-id="${id}"]`);
+            if (banner) {
+                banner.classList.add('dismissed');
+                
+                // Store dismissed state in localStorage
+                let dismissed = JSON.parse(localStorage.getItem('dismissedAnnouncements') || '[]');
+                if (!dismissed.includes(id)) {
+                    dismissed.push(id);
+                    localStorage.setItem('dismissedAnnouncements', JSON.stringify(dismissed));
+                }
+            }
+        }
+
+        // Check for previously dismissed announcements on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const dismissed = JSON.parse(localStorage.getItem('dismissedAnnouncements') || '[]');
+            dismissed.forEach(id => {
+                const banner = document.querySelector(`[data-announcement-id="${id}"]`);
+                if (banner) {
+                    banner.classList.add('dismissed');
+                }
+            });
+        });
+    </script>
 </body>
 </html>

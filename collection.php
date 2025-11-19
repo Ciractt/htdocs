@@ -60,7 +60,7 @@ $sets = $pdo->query("SELECT DISTINCT set_name FROM cards WHERE set_name IS NOT N
     <link rel="stylesheet" href="css/theme.css">
 
     <style>
-        /* Collection-specific styles that extend theme.css */
+        /* Collection-specific styles with unified visual design */
         .collection-header {
             background: var(--bg-secondary);
             padding: var(--spacing-xl);
@@ -127,6 +127,76 @@ $sets = $pdo->query("SELECT DISTINCT set_name FROM cards WHERE set_name IS NOT N
             flex-wrap: wrap;
         }
 
+        /* Custom styled inputs and selects */
+        .filter-group .search-input,
+        .filter-group .filter-select {
+            flex: 1;
+            min-width: 140px;
+            max-width: 200px;
+            padding: 0.6rem 0.75rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-size: 0.85rem;
+            font-family: inherit;
+            transition: all var(--transition-base);
+            cursor: pointer;
+        }
+
+        .filter-group .search-input {
+            min-width: 180px;
+            max-width: 250px;
+        }
+
+        .filter-group .search-input:focus,
+        .filter-group .filter-select:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .filter-group .search-input:hover,
+        .filter-group .filter-select:hover {
+            border-color: var(--accent-primary);
+        }
+
+        /* Custom select styling */
+        .filter-group .filter-select {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23b0b7c3' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            padding-right: 2rem;
+        }
+
+        .filter-group .filter-select option {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            padding: 0.5rem;
+        }
+
+        /* Search input icon */
+        .filter-group .search-input {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            padding-right: 2.25rem;
+        }
+
+        .filter-group .search-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        /* Reset button styling */
+        .filter-group .btn {
+            padding: 0.6rem 1rem;
+            font-size: 0.85rem;
+            white-space: nowrap;
+        }
+
         /* Collection Status Bar */
         .collection-status-bar {
             background: var(--bg-secondary);
@@ -161,7 +231,7 @@ $sets = $pdo->query("SELECT DISTINCT set_name FROM cards WHERE set_name IS NOT N
             display: flex;
             align-items: center;
             gap: var(--spacing-md);
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
         }
 
         /* View Toggle */
@@ -172,18 +242,24 @@ $sets = $pdo->query("SELECT DISTINCT set_name FROM cards WHERE set_name IS NOT N
             padding: 4px;
             border-radius: var(--radius-md);
             border: 1px solid var(--border-primary);
+            height: 38px;
+            align-items: center;
         }
 
         .view-toggle-btn {
-            padding: var(--spacing-sm) var(--spacing-lg);
+            padding: 0 var(--spacing-lg);
+            height: 28px;
             border: none;
             background: transparent;
             cursor: pointer;
             border-radius: var(--radius-sm);
             font-weight: 600;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             transition: all var(--transition-base);
             color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .view-toggle-btn:hover {
@@ -202,11 +278,12 @@ $sets = $pdo->query("SELECT DISTINCT set_name FROM cards WHERE set_name IS NOT N
             align-items: center;
             gap: var(--spacing-sm);
             cursor: pointer;
-            padding: var(--spacing-sm) var(--spacing-lg);
+            padding: 0 var(--spacing-lg);
+            height: 38px;
             background: var(--bg-tertiary);
             border-radius: var(--radius-md);
             border: 1px solid var(--border-primary);
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             transition: all var(--transition-base);
         }
 
@@ -215,32 +292,68 @@ $sets = $pdo->query("SELECT DISTINCT set_name FROM cards WHERE set_name IS NOT N
         }
 
         .wishlist-toggle input[type="checkbox"] {
-            width: 18px;
-            height: 18px;
+            width: 16px;
+            height: 16px;
             cursor: pointer;
         }
 
-        /* Collection Grid */
+        /* Sort select in status bar */
+        .status-controls .filter-select {
+            padding: 0 2rem 0 0.75rem;
+            height: 38px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-size: 0.85rem;
+            font-family: inherit;
+            transition: all var(--transition-base);
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23b0b7c3' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+        }
+
+        .status-controls .filter-select:hover {
+            border-color: var(--accent-primary);
+        }
+
+        .status-controls .filter-select:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .status-controls .filter-select option {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        /* Collection Grid - Unified 6-column layout */
         .collection-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            grid-template-columns: repeat(6, 1fr);
             gap: var(--spacing-lg);
             padding: var(--spacing-md) 0;
         }
 
+        /* Collection Card - Unified styling */
         .collection-card {
             position: relative;
             border-radius: var(--radius-lg);
             overflow: hidden;
-            background: var(--bg-secondary);
+            background: var(--bg-tertiary);
             border: 1px solid var(--border-primary);
             box-shadow: var(--shadow-sm);
             transition: all var(--transition-base);
         }
 
         .collection-card:hover {
-            transform: translateY(-4px);
-            box-shadow: var(--shadow-lg);
+            transform: translateY(-6px);
+            box-shadow: var(--shadow-glow), var(--shadow-lg);
             border-color: var(--accent-primary);
         }
 
@@ -255,17 +368,40 @@ $sets = $pdo->query("SELECT DISTINCT set_name FROM cards WHERE set_name IS NOT N
             opacity: 1;
         }
 
+        /* Rarity-based hover effects */
+        .collection-card[data-rarity="common"]:hover {
+            box-shadow: 0 8px 20px rgba(149, 165, 166, 0.5);
+        }
+
+        .collection-card[data-rarity="rare"]:hover {
+            box-shadow: 0 8px 20px rgba(52, 152, 219, 0.5);
+        }
+
+        .collection-card[data-rarity="epic"]:hover {
+            box-shadow: 0 8px 20px rgba(155, 89, 182, 0.5);
+        }
+
+        .collection-card[data-rarity="champion"]:hover {
+            box-shadow: 0 8px 20px rgba(243, 156, 18, 0.6);
+        }
+
         .card-image-container {
             position: relative;
             cursor: pointer;
-            aspect-ratio: 2/3;
+            aspect-ratio: 515/719;
+            background: var(--bg-primary);
         }
 
         .card-image-container img {
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: contain;
             display: block;
+            transition: transform var(--transition-slow);
+        }
+
+        .collection-card:hover .card-image-container img {
+            transform: scale(1.05);
         }
 
         /* Card Controls */
@@ -273,26 +409,26 @@ $sets = $pdo->query("SELECT DISTINCT set_name FROM cards WHERE set_name IS NOT N
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: var(--spacing-md);
-            background: var(--bg-tertiary);
+            padding: var(--spacing-sm);
+            background: var(--bg-secondary);
             border-top: 1px solid var(--border-primary);
         }
 
         .quantity-controls {
             display: flex;
             align-items: center;
-            gap: var(--spacing-sm);
+            gap: var(--spacing-xs);
         }
 
         .quantity-btn {
-            width: 32px;
-            height: 32px;
+            width: 28px;
+            height: 28px;
             border: none;
             background: var(--accent-primary);
             color: white;
-            border-radius: var(--radius-md);
+            border-radius: var(--radius-sm);
             cursor: pointer;
-            font-size: 1.2rem;
+            font-size: 1rem;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -313,34 +449,30 @@ $sets = $pdo->query("SELECT DISTINCT set_name FROM cards WHERE set_name IS NOT N
         }
 
         .quantity-display {
-            min-width: 40px;
+            min-width: 30px;
             text-align: center;
             font-weight: 700;
-            font-size: 1.1rem;
-            padding: var(--spacing-xs) var(--spacing-sm);
-            border-radius: var(--radius-sm);
-            transition: all var(--transition-base);
+            font-size: 0.9rem;
             color: var(--text-secondary);
         }
 
         .collection-card[data-owned="1"] .quantity-display {
-            background: rgba(16, 185, 129, 0.1);
             color: var(--success);
         }
 
         .wishlist-btn {
-            width: 32px;
-            height: 32px;
+            width: 28px;
+            height: 28px;
             border: none;
             background: transparent;
             cursor: pointer;
-            font-size: 1.3rem;
+            font-size: 1rem;
             transition: all var(--transition-base);
             border-radius: var(--radius-full);
+            padding: 0;
         }
 
         .wishlist-btn:hover {
-            background: rgba(239, 68, 68, 0.1);
             transform: scale(1.2);
         }
 
@@ -349,19 +481,19 @@ $sets = $pdo->query("SELECT DISTINCT set_name FROM cards WHERE set_name IS NOT N
         }
 
         .info-btn {
-            width: 32px;
-            height: 32px;
+            width: 28px;
+            height: 28px;
             border: none;
             background: transparent;
             cursor: pointer;
-            font-size: 1rem;
+            font-size: 0.9rem;
             color: var(--accent-primary);
             transition: all var(--transition-base);
             border-radius: var(--radius-full);
+            padding: 0;
         }
 
         .info-btn:hover {
-            background: rgba(102, 126, 234, 0.1);
             transform: scale(1.1);
         }
 
@@ -416,6 +548,31 @@ $sets = $pdo->query("SELECT DISTINCT set_name FROM cards WHERE set_name IS NOT N
         }
 
         /* Responsive */
+        @media (max-width: 1400px) {
+            .collection-grid {
+                grid-template-columns: repeat(5, 1fr);
+            }
+        }
+
+        @media (max-width: 1200px) {
+            .collection-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+
+            .filter-group .search-input,
+            .filter-group .filter-select {
+                min-width: 120px;
+                max-width: none;
+                flex: 1 1 calc(33% - var(--spacing-md));
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .collection-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
         @media (max-width: 768px) {
             .collection-controls,
             .collection-status-bar {
@@ -428,14 +585,20 @@ $sets = $pdo->query("SELECT DISTINCT set_name FROM cards WHERE set_name IS NOT N
                 width: 100%;
             }
 
-            .filter-select,
-            .search-input {
+            .filter-group .search-input,
+            .filter-group .filter-select {
                 width: 100%;
+                max-width: none;
+                min-width: unset;
             }
 
             .status-controls {
                 flex-direction: column;
                 align-items: stretch;
+            }
+
+            .status-controls .filter-select {
+                width: 100%;
             }
 
             .view-toggle {
@@ -447,8 +610,20 @@ $sets = $pdo->query("SELECT DISTINCT set_name FROM cards WHERE set_name IS NOT N
             }
 
             .collection-grid {
-                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+                grid-template-columns: repeat(2, 1fr);
                 gap: var(--spacing-md);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .card-controls {
+                padding: var(--spacing-xs);
+            }
+
+            .quantity-btn {
+                width: 24px;
+                height: 24px;
+                font-size: 0.9rem;
             }
         }
     </style>
@@ -534,22 +709,22 @@ $sets = $pdo->query("SELECT DISTINCT set_name FROM cards WHERE set_name IS NOT N
                     <button class="view-toggle-btn" data-view="owned">Owned</button>
                 </div>
 
+                <!-- Sort -->
+                <select id="sortSelect" class="filter-select">
+                    <option value="code-asc">Card Code (A-Z)</option>
+                    <option value="code-desc">Card Code (Z-A)</option>
+                    <option value="name-asc">Name (A-Z)</option>
+                    <option value="name-desc">Name (Z-A)</option>
+                    <option value="energy-asc">Energy (Low-High)</option>
+                    <option value="energy-desc">Energy (High-Low)</option>
+                    <option value="rarity-asc">Rarity</option>
+                </select>
+
                 <!-- Wishlist Toggle -->
                 <label class="wishlist-toggle">
                     <input type="checkbox" id="wishlistFilter">
                     <span>❤️ Wishlist</span>
                 </label>
-
-                <!-- Sort -->
-                <select id="sortSelect" class="filter-select">
-                    <option value="code-asc">Sort: Card Code (A-Z)</option>
-                    <option value="code-desc">Sort: Card Code (Z-A)</option>
-                    <option value="name-asc">Sort: Name (A-Z)</option>
-                    <option value="name-desc">Sort: Name (Z-A)</option>
-                    <option value="energy-asc">Sort: Energy (Low-High)</option>
-                    <option value="energy-desc">Sort: Energy (High-Low)</option>
-                    <option value="rarity-asc">Sort: Rarity</option>
-                </select>
             </div>
         </div>
 

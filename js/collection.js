@@ -22,7 +22,8 @@
         setupViewToggle();
         setupFilters();
         setupSort();
-        applyFiltersAndSort();
+        // Don't apply filters on init - let the page display as-is first
+        // Filters will apply when user interacts with controls
     }
 
     /**
@@ -134,8 +135,8 @@
         });
 
         // Reset sort
-        currentSort = 'id-asc';
-        document.getElementById('sortSelect').value = 'id-asc';
+        currentSort = 'code-asc';
+        document.getElementById('sortSelect').value = 'code-asc';
 
         // Apply
         applyFiltersAndSort();
@@ -159,8 +160,22 @@
      */
     function applyFiltersAndSort() {
         const grid = document.getElementById('collectionGrid');
+        if (!grid) {
+            console.error('Collection grid not found');
+            return;
+        }
+        
         const cards = Array.from(grid.querySelectorAll('.collection-card'));
         const emptyState = document.getElementById('emptyState');
+
+        // If no cards found at all, don't hide the grid - cards may not be loaded yet
+        if (cards.length === 0) {
+            console.log('No collection-card elements found in grid');
+            // Make sure grid is visible
+            grid.style.display = 'grid';
+            if (emptyState) emptyState.style.display = 'none';
+            return;
+        }
 
         let visibleCount = 0;
 
@@ -178,10 +193,10 @@
 
             // Search filter
             if (visible && currentFilters.search) {
-                const name = card.dataset.name;
-                const cardId = card.querySelector('.card-image-container img')?.alt || '';
+                const name = card.dataset.name || '';
+                const cardCode = card.dataset.cardCode || '';
                 if (!name.includes(currentFilters.search) &&
-                    !cardId.toLowerCase().includes(currentFilters.search)) {
+                    !cardCode.includes(currentFilters.search)) {
                     visible = false;
                 }
             }
@@ -231,12 +246,16 @@
         sortCards(cards.filter(c => c.style.display !== 'none'));
 
         // Show/hide empty state
-        if (visibleCount === 0) {
-            grid.style.display = 'none';
-            emptyState.style.display = 'block';
+        if (emptyState) {
+            if (visibleCount === 0) {
+                grid.style.display = 'none';
+                emptyState.style.display = 'block';
+            } else {
+                grid.style.display = 'grid';
+                emptyState.style.display = 'none';
+            }
         } else {
             grid.style.display = 'grid';
-            emptyState.style.display = 'none';
         }
     }
 

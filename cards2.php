@@ -59,8 +59,143 @@ $regions   = $pdo->query("SELECT DISTINCT region FROM cards ORDER BY region")->f
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Card Database - <?php echo SITE_NAME; ?></title>
 
-    <!-- SINGLE CSS FILE - That's it! -->
+    <!-- SINGLE CSS FILE -->
     <link rel="stylesheet" href="css/theme.css">
+    <style>
+        /* ============================================
+           UNIFIED CARD GRID - Matches index.php
+           ============================================ */
+        
+        .unified-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: var(--spacing-lg);
+            margin-top: var(--spacing-lg);
+        }
+
+        .unified-card {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            transition: all var(--transition-base);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .unified-card:hover {
+            transform: translateY(-6px);
+            border-color: var(--accent-primary);
+            box-shadow: var(--shadow-glow), var(--shadow-lg);
+        }
+
+        /* Card image container - matches actual card ratio (515x719) */
+        .unified-card-image {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 515/719;
+            overflow: hidden;
+            background: var(--bg-primary);
+        }
+
+        .unified-card-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            transition: transform var(--transition-slow);
+        }
+
+        .unified-card:hover .unified-card-image img {
+            transform: scale(1.05);
+        }
+
+        /* Placeholder for cards without images */
+        .unified-card-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+            background: var(--accent-gradient);
+            padding: var(--spacing-md);
+            text-align: center;
+        }
+
+        .unified-card-placeholder .placeholder-name {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        .unified-card-placeholder .placeholder-type {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        /* Card-only style (no content area) */
+        .unified-card.card-only {
+            aspect-ratio: 515/719;
+        }
+
+        .unified-card.card-only .unified-card-image {
+            aspect-ratio: unset;
+            height: 100%;
+        }
+
+        /* Rarity-based hover effects */
+        .unified-card[data-rarity="common"]:hover {
+            box-shadow: 0 8px 20px rgba(149, 165, 166, 0.5);
+        }
+
+        .unified-card[data-rarity="rare"]:hover {
+            box-shadow: 0 8px 20px rgba(52, 152, 219, 0.5);
+        }
+
+        .unified-card[data-rarity="epic"]:hover {
+            box-shadow: 0 8px 20px rgba(155, 89, 182, 0.5);
+        }
+
+        .unified-card[data-rarity="champion"]:hover {
+            box-shadow: 0 8px 20px rgba(243, 156, 18, 0.6);
+        }
+
+        /* Responsive breakpoints */
+        @media (max-width: 1400px) {
+            .unified-grid {
+                grid-template-columns: repeat(5, 1fr);
+            }
+        }
+
+        @media (max-width: 1200px) {
+            .unified-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .unified-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .unified-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .unified-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: var(--spacing-md);
+            }
+        }
+    </style>
 </head>
 <body>
     <?php include 'includes/header.php'; ?>
@@ -134,24 +269,22 @@ $regions   = $pdo->query("SELECT DISTINCT region FROM cards ORDER BY region")->f
             <p>Showing <?php echo count($cards); ?> card(s)</p>
         </div>
 
-        <!-- Card Gallery -->
-        <div class="card-gallery">
+        <!-- Card Gallery - Unified Design -->
+        <div class="unified-grid">
             <?php foreach ($cards as $card): ?>
-                <div class="gallery-card-item"
+                <div class="unified-card card-only"
                      data-rarity="<?php echo strtolower($card['rarity']); ?>"
                      onclick="showCardDetails(<?php echo htmlspecialchars(json_encode($card), ENT_QUOTES, 'UTF-8'); ?>)">
-                    <div class="gallery-card-image">
+                    <div class="unified-card-image">
                         <?php if ($card['card_art_url']): ?>
                             <img src="<?php echo htmlspecialchars($card['card_art_url']); ?>"
                                  alt="<?php echo htmlspecialchars($card['name']); ?>"
                                  draggable="false"
                                  loading="lazy">
                         <?php else: ?>
-                            <div class="card-placeholder-full">
-                                <div class="placeholder-content">
-                                    <span class="placeholder-name"><?php echo htmlspecialchars($card['name']); ?></span>
-                                    <span class="placeholder-type"><?php echo $card['card_type']; ?></span>
-                                </div>
+                            <div class="unified-card-placeholder">
+                                <span class="placeholder-name"><?php echo htmlspecialchars($card['name']); ?></span>
+                                <span class="placeholder-type"><?php echo $card['card_type']; ?></span>
                             </div>
                         <?php endif; ?>
                     </div>

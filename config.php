@@ -4,8 +4,8 @@ session_start();
 
 // Database configuration
 define('DB_HOST', 'localhost');
-define('DB_USER', 'root');
-define('DB_PASS', '');
+define('DB_USER', 'riftbound');
+define('DB_PASS', '![@ef[hseux,Jv4Wxf');
 define('DB_NAME', 'riftbound');
 
 // Riot API configuration
@@ -13,7 +13,7 @@ define('RIOT_API_KEY', 'YOUR_RIOT_API_KEY_HERE');
 define('RIOT_API_REGION', 'americas'); // americas, europe, asia, sea
 
 // Site configuration
-define('SITE_URL', 'http://localhost');
+define('SITE_URL', 'https://riftvault.gg');
 define('SITE_NAME', 'RiftVault.gg');
 
 // Create database connection
@@ -52,7 +52,7 @@ function getCurrentUser() {
     }
 
     $pdo = getDB();
-    $stmt = $pdo->prepare("SELECT id, username, email, riot_id, is_admin, is_moderator, last_login FROM users WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT id, username, email, riot_id FROM users WHERE id = ?");
     $stmt->execute([$_SESSION['user_id']]);
     return $stmt->fetch();
 }
